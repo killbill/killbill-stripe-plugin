@@ -1,0 +1,88 @@
+<!-- See https://stripe.com/docs/stripe.js and https://gist.github.com/briancollins/6365455 -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+    <title>Stripe.js Checkout</title>
+    <script src="<%= stripejs_url %>" type="text/javascript"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+      Stripe.setPublishableKey("<%= publishable_key %>");
+
+      var stripeResponseHandler = function(status, response) {
+        var $form = $('#payment-form');
+
+        if (response.error) {
+          // Show the errors on the form
+          $form.find('.payment-errors').text(response.error.message);
+          $form.find('button').prop('disabled', false);
+        } else {
+          // Insert the response values into the form so it gets submitted to the server
+          $form.append($('<input type="hidden" name="stripeToken" />').val(response.id));
+          $form.append($('<input type="hidden" name="stripeCardName" />').val((response.card || {}).name));
+          $form.append($('<input type="hidden" name="stripeCardAddressLine1" />').val((response.card || {}).address_line1));
+          $form.append($('<input type="hidden" name="stripeCardAddressLine2" />').val((response.card || {}).address_line2));
+          $form.append($('<input type="hidden" name="stripeCardAddressCity" />').val((response.card || {}).address_city));
+          $form.append($('<input type="hidden" name="stripeCardAddressState" />').val((response.card || {}).address_state));
+          $form.append($('<input type="hidden" name="stripeCardAddressZip" />').val((response.card || {}).address_zip));
+          $form.append($('<input type="hidden" name="stripeCardAddressCountry" />').val((response.card || {}).address_country));
+          $form.append($('<input type="hidden" name="stripeCardCountry" />').val((response.card || {}).country));
+          $form.append($('<input type="hidden" name="stripeCardExpMonth" />').val((response.card || {}).exp_month));
+          $form.append($('<input type="hidden" name="stripeCardExpYear" />').val((response.card || {}).exp_year));
+          $form.append($('<input type="hidden" name="stripeCardLast4" />').val((response.card || {}).last4));
+          $form.append($('<input type="hidden" name="stripeCardFingerprint" />').val((response.card || {}).fingerprint));
+          $form.append($('<input type="hidden" name="stripeCardObject" />').val((response.card || {}).object));
+          $form.append($('<input type="hidden" name="stripeCardType" />').val((response.card || {}).type));
+          $form.append($('<input type="hidden" name="stripeCreated" />').val(response.created));
+          $form.append($('<input type="hidden" name="stripeLivemode" />').val(response.livemode));
+          $form.append($('<input type="hidden" name="stripeType" />').val(response.type));
+          $form.append($('<input type="hidden" name="stripeObject" />').val(response.object));
+          $form.append($('<input type="hidden" name="stripeUsed" />').val(response.used));
+          // and re-submit
+          $form.get(0).submit();
+        }
+      };
+
+      $(document).ready(function() {
+        $('#payment-form').submit(function(e) {
+          var $form = $(this);
+
+          // Disable the submit button to prevent repeated clicks
+          $form.find('button').prop('disabled', true);
+
+          Stripe.createToken($form, stripeResponseHandler);
+
+          // Prevent the form from submitting with the default action
+          return false;
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <form method="post" id="payment-form" action="">
+      <span class='payment-errors'></span>
+      <input type="hidden" name="kbAccountId" value="<%= kb_account_id %>" />
+      <div class="form-row">
+        <label>
+          <span>Card Number</span>
+          <input type="text" size="20" data-stripe="number"/>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>
+          <span>CVC</span>
+          <input type="text" size="4" data-stripe="cvc"/>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>
+          <span>Expiration (MM/YYYY)</span>
+          <input type="text" size="2" data-stripe="exp-month"/>
+        </label>
+        <span> / </span>
+        <input type="text" size="4" data-stripe="exp-year"/>
+      </div>
+      <button type="submit">Save credit card</button>
+    </form>
+  </body>
+</html>

@@ -1,16 +1,19 @@
-language: java
-script: mvn clean install -Ptravis
-# Remove --quiet to avoid timeouts
-install: mvn install -DskipTests=true
+language: ruby
 
 notifications:
   email:
     - kill-bill-commits@googlegroups.com
+
+rvm:
+  - jruby-19mode
+  - jruby-20mode
+  - jruby-head
 
 jdk:
   - openjdk6
   - openjdk7
   - oraclejdk7
 
-env:
-  - MAVEN_OPTS="-Xmx512m -XX:MaxPermSize=192m"
+matrix:
+  allow_failures:
+    - rvm: jruby-head
