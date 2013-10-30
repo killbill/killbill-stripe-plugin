@@ -5,6 +5,7 @@ module Killbill::Stripe
   mattr_reader :config
   mattr_reader :gateway
   mattr_reader :kb_apis
+  mattr_reader :stripe_payment_description
   mattr_reader :initialized
   mattr_reader :test
 
@@ -18,6 +19,8 @@ module Killbill::Stripe
     @@test = @@config[:stripe][:test]
 
     @@logger.log_level = Logger::DEBUG if (@@config[:logger] || {})[:debug]
+
+    @@stripe_payment_description = @@config[:stripe][:payment_description]
 
     @@gateway = Killbill::Stripe::Gateway.from_config(@@config[:stripe])
 

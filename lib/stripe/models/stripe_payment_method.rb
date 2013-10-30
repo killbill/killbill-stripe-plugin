@@ -51,8 +51,10 @@ module Killbill::Stripe
     def self.search_query(search_key, offset = nil, limit = nil)
       t = self.arel_table
 
-      # Exact match for stripe_token, cc_type, cc_exp_month, cc_exp_year, cc_last_4, state and zip, partial match for the reset
-      where_clause =     t[:stripe_token].eq(search_key)
+      # Exact match for kb_account_id, kb_payment_method_id, stripe_token, cc_type, cc_exp_month, cc_exp_year, cc_last_4, state and zip, partial match for the reset
+      where_clause =     t[:kb_account_id].eq(search_key)
+                     .or(t[:kb_payment_method_id].eq(search_key))
+                     .or(t[:stripe_token].eq(search_key))
                      .or(t[:cc_type].eq(search_key))
                      .or(t[:state].eq(search_key))
                      .or(t[:zip].eq(search_key))
@@ -70,7 +72,9 @@ module Killbill::Stripe
                                    .or(t[:cc_last_4].eq(search_key))
       end
 
+      # Remove garbage payment methods (added in the plugin but not reconcilied with Kill Bill yet)
       query = t.where(where_clause)
+               .where(t[:kb_payment_method_id].not_eq(nil))
                .order(t[:id])
 
       if offset.blank? and limit.blank?

@@ -4,12 +4,11 @@ module Killbill::Stripe
 
     def add_payment_method(params)
       stripe_customer_id = StripePaymentMethod.stripe_customer_id_from_kb_account_id(params[:kbAccountId])
-      if stripe_customer_id.nil?
-        # New customer
-        stripe_response = gateway.store params[:stripeToken], { :description => params[:kbAccountId] }
-        response = save_response stripe_response, :register_customer
-        raise response.message unless response.success
-      end
+
+      # This will either update the current customer if present, or create a new one
+      stripe_response = gateway.store params[:stripeToken], { :description => params[:kbAccountId], :customer => stripe_customer_id }
+      response = save_response stripe_response, :add_payment_method
+      raise response.message unless response.success
 
       # Create the payment method (not associated to a Kill Bill payment method yet)
       pm = Killbill::Stripe::StripePaymentMethod.create! :kb_account_id => params[:kbAccountId],
