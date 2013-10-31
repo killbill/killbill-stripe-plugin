@@ -24,11 +24,12 @@ module Killbill::Stripe
       options[:currency] ||= currency.to_s.upcase
       options[:description] ||= Killbill::Stripe.stripe_payment_description || "Kill Bill payment for #{kb_payment_id}"
 
-      # Retrieve the Stripe payment method (charge the Stripe customer)
-      options[:customer] ||= StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id).stripe_customer_id
+      # Retrieve the Stripe payment method
+      pm = StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id)
+      options[:customer] ||= pm.stripe_customer_id
 
       # Go to Stripe
-      stripe_response = Killbill::Stripe.gateway.purchase amount_in_cents, nil, options
+      stripe_response = Killbill::Stripe.gateway.purchase amount_in_cents, pm.stripe_card_id_or_token, options
       response = save_response_and_transaction stripe_response, :charge, kb_payment_id, amount_in_cents
 
       response.to_payment_response
@@ -64,14 +65,16 @@ module Killbill::Stripe
 
       # This will either update the current customer if present, or create a new one
       options[:customer] ||= stripe_customer_id
+      options[:set_default] ||= set_default
 
       # Magic field, see also private_api.rb
       options[:description] ||= kb_account_id
 
-      # Registering a token from Stripe.js?
-      cc_or_token = find_value_from_payment_method_props payment_method_props, 'token'
+      # Registering a card or a token from Stripe.js?
+      cc_or_token = find_value_from_payment_method_props(payment_method_props, 'token') || find_value_from_payment_method_props(payment_method_props, 'cardId')
       if cc_or_token.blank?
-        cc = ActiveMerchant::Billing.CreditCard.new(
+        # Nope - real credit card
+        cc = ActiveMerchant::Billing::CreditCard.new(
               :number             => find_value_from_payment_method_props(payment_method_props, 'ccNumber'),
               :month              => find_value_from_payment_method_props(payment_method_props, 'ccExpirationMonth'),
               :year               => find_value_from_payment_method_props(payment_method_props, 'ccExpirationYear'),
@@ -86,31 +89,41 @@ module Killbill::Stripe
       response = save_response_and_transaction stripe_response, :add_payment_method
 
       if response.success
-        # TODO Extract values from response
+        card_response = r.responses.first
+        customer_response = r.responses.last
         StripePaymentMethod.create :kb_account_id => kb_account_id,
                                    :kb_payment_method_id => kb_payment_method_id,
-                                   :stripe_customer_id => options[:customer],
-                                   :stripe_token => response.stripe_token,
-                                   :cc_first_name => find_value_from_payment_method_props(payment_method_props, 'ccFirstName'),
-                                   :cc_last_name => find_value_from_payment_method_props(payment_method_props, 'ccLastName'),
-                                   :cc_type => find_value_from_payment_method_props(payment_method_props, 'ccType'),
-                                   :cc_exp_month => find_value_from_payment_method_props(payment_method_props, 'ccExpMonth'),
-                                   :cc_exp_year => find_value_from_payment_method_props(payment_method_props, 'ccExpYear'),
-                                   :cc_last_4 => find_value_from_payment_method_props(payment_method_props, 'ccLast4'),
-                                   :address1 => find_value_from_payment_method_props(payment_method_props, 'address1'),
-                                   :address2 => find_value_from_payment_method_props(payment_method_props, 'address2'),
-                                   :city => find_value_from_payment_method_props(payment_method_props, 'city'),
-                                   :state => find_value_from_payment_method_props(payment_method_props, 'state'),
-                                   :zip => find_value_from_payment_method_props(payment_method_props, 'zip'),
-                                   :country => find_value_from_payment_method_props(payment_method_props, 'country')
+                                   :stripe_customer_id => customer_response.params['id'],
+                                   :stripe_card_id_or_token => card_response.params['id'],
+                                   :cc_first_name => card_response.params['name'],
+                                   :cc_last_name => nil,
+                                   :cc_type => card_response.params['type'],
+                                   :cc_exp_month => card_response.params['exp_month'],
+                                   :cc_exp_year => card_response.params['exp_year'],
+                                   :cc_last_4 => card_response.params['last4'],
+                                   :address1 => card_response.params['address_line1'],
+                                   :address2 => card_response.params['address_line2'],
+                                   :city => card_response.params['address_city'],
+                                   :state => card_response.params['address_state'],
+                                   :zip => card_response.params['address_zip'],
+                                   :country => card_response.params['address_country']
       else
         raise response.message
       end
     end
 
     def delete_payment_method(kb_account_id, kb_payment_method_id, call_context = nil, options = {})
-      # TODO No ActiveMerchant API to unstore the card without deleting the customer
-      StripePaymentMethod.mark_as_deleted! kb_payment_method_id
+      pm = StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id)
+
+      # Delete the card on the customer object
+      stripe_response = Killbill::Stripe.gateway.unstore(pm.stripe_customer_id, pm.stripe_card_id_or_token)
+      response = save_response_and_transaction stripe_response, :delete_payment_method
+
+      if response.success
+        StripePaymentMethod.mark_as_deleted! kb_payment_method_id
+      else
+        raise response.message
+      end
     end
 
     def get_payment_method_detail(kb_account_id, kb_payment_method_id, tenant_context = nil, options = {})
@@ -118,8 +131,17 @@ module Killbill::Stripe
     end
 
     def set_default_payment_method(kb_account_id, kb_payment_method_id, call_context = nil, options = {})
-      # TODO Update our records and Stripe's
-      # No-op
+      pm = StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id)
+
+      # Update the default payment method on the customer object
+      stripe_response = Killbill::Stripe.gateway.update_customer(pm.stripe_customer_id, :default_card => pm.stripe_card_id_or_token)
+      response = save_response_and_transaction stripe_response, :set_default_payment_method
+
+      if response.success
+        # TODO Update our records
+      else
+        raise response.message
+      end
     end
 
     def get_payment_methods(kb_account_id, refresh_from_gateway = false, call_context = nil, options = {})
@@ -155,11 +177,13 @@ module Killbill::Stripe
       end
 
       # The remaining elements in payment_methods are not in our table (this should never happen?!)
-      # TODO retrieve and create Stripe account if needed
       payment_methods.each do |payment_method_info_plugin|
-        StripePaymentMethod.create :kb_account_id => payment_method_info_plugin.account_id,
-                                   :kb_payment_method_id => payment_method_info_plugin.payment_method_id,
-                                   :stripe_token => payment_method_info_plugin.external_payment_method_id
+        add_payment_method kb_account_id,
+                           payment_method_info_plugin.payment_method_id,
+                           { 'cardId' => payment_method_info_plugin.external_payment_method_id },
+                           payment_method_info_plugin.is_default,
+                           call_context,
+                           options
       end
     end
 
@@ -170,6 +194,7 @@ module Killbill::Stripe
     private
 
     def find_value_from_payment_method_props(payment_method_props, key)
+      return payment_method_props[key] if payment_method_props.is_a? Hash
       prop = (payment_method_props.properties.find { |kv| kv.key == key })
       prop.nil? ? nil : prop.value
     end

@@ -3,7 +3,7 @@ module Killbill::Stripe
     attr_accessible :kb_account_id,
                     :kb_payment_method_id,
                     :stripe_customer_id,
-                    :stripe_token,
+                    :stripe_card_id_or_token,
                     :cc_first_name,
                     :cc_last_name,
                     :cc_type,
