@@ -22,8 +22,8 @@ Gem::Specification.new do |s|
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 1.7.1'
-  s.add_dependency 'activemerchant', '~> 1.41.0'
+  s.add_dependency 'killbill', '~> 1.9.0'
+  s.add_dependency 'activemerchant', '~> 1.42.3'
   s.add_dependency 'activerecord', '~> 3.2.1'
   s.add_dependency 'sinatra', '~> 1.3.4'
   if defined?(JRUBY_VERSION)
