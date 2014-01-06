@@ -5,7 +5,7 @@ ActiveRecord::Schema.define(:version => 20130311153635) do
     t.string   "kb_account_id",          :null => false
     t.string   "kb_payment_method_id"    # NULL before Killbill knows about it
     t.string   "stripe_customer_id"
-    t.string   "stripe_token",           :null => false
+    t.string   "stripe_card_id_or_token",:null => false
     t.string   "cc_first_name"
     t.string   "cc_last_name"
     t.string   "cc_type"

@@ -67,46 +67,65 @@ module Killbill::Stripe
       options[:customer] ||= stripe_customer_id
       options[:set_default] ||= set_default
 
-      # Magic field, see also private_api.rb
-      options[:description] ||= kb_account_id
+      # Magic field, see also private_api.rb (works only when creating an account)
+      if options[:customer].blank?
+        options[:description] ||= kb_account_id
+      else
+        options[:description] = nil
+      end
 
       # Registering a card or a token from Stripe.js?
       cc_or_token = find_value_from_payment_method_props(payment_method_props, 'token') || find_value_from_payment_method_props(payment_method_props, 'cardId')
       if cc_or_token.blank?
         # Nope - real credit card
-        cc = ActiveMerchant::Billing::CreditCard.new(
+        cc_or_token = ActiveMerchant::Billing::CreditCard.new(
               :number             => find_value_from_payment_method_props(payment_method_props, 'ccNumber'),
               :month              => find_value_from_payment_method_props(payment_method_props, 'ccExpirationMonth'),
               :year               => find_value_from_payment_method_props(payment_method_props, 'ccExpirationYear'),
               :verification_value => find_value_from_payment_method_props(payment_method_props, 'ccVerificationValue'),
               :first_name         => find_value_from_payment_method_props(payment_method_props, 'ccFirstName'),
-              :last_name          => find_value_from_payment_method_props(payment_method_props, 'ccLstName')
+              :last_name          => find_value_from_payment_method_props(payment_method_props, 'ccLastName')
         )
       end
+
+      options[:billing_address] ||= {
+              :address1           => find_value_from_payment_method_props(payment_method_props, 'address1'),
+              :address2           => find_value_from_payment_method_props(payment_method_props, 'address2'),
+              :city               => find_value_from_payment_method_props(payment_method_props, 'city'),
+              :zip                => find_value_from_payment_method_props(payment_method_props, 'zip'),
+              :state              => find_value_from_payment_method_props(payment_method_props, 'state'),
+              :country            => find_value_from_payment_method_props(payment_method_props, 'country')
+      }
 
       # Go to Stripe
       stripe_response = Killbill::Stripe.gateway.store cc_or_token, options
       response = save_response_and_transaction stripe_response, :add_payment_method
 
       if response.success
-        card_response = r.responses.first
-        customer_response = r.responses.last
+        unless stripe_customer_id.blank?
+          card_response = stripe_response.responses.first.params
+          customer_response = stripe_response.responses.last.params
+        else
+          card_response = stripe_response.params['cards']['data'][0]
+          customer_response = stripe_response.params
+        end
+
         StripePaymentMethod.create :kb_account_id => kb_account_id,
                                    :kb_payment_method_id => kb_payment_method_id,
-                                   :stripe_customer_id => customer_response.params['id'],
-                                   :stripe_card_id_or_token => card_response.params['id'],
-                                   :cc_first_name => card_response.params['name'],
+                                   :stripe_customer_id => customer_response['id'],
+                                   :stripe_card_id_or_token => card_response['id'],
+                                   :cc_first_name => card_response['name'],
                                    :cc_last_name => nil,
-                                   :cc_type => card_response.params['type'],
-                                   :cc_exp_month => card_response.params['exp_month'],
-                                   :cc_exp_year => card_response.params['exp_year'],
-                                   :cc_last_4 => card_response.params['last4'],
-                                   :address1 => card_response.params['address_line1'],
-                                   :address2 => card_response.params['address_line2'],
-                                   :city => card_response.params['address_city'],
-                                   :state => card_response.params['address_state'],
-                                   :zip => card_response.params['address_zip'],
-                                   :country => card_response.params['address_country']
+                                   :cc_type => card_response['type'],
+                                   :cc_exp_month => card_response['exp_month'],
+                                   :cc_exp_year => card_response['exp_year'],
+                                   :cc_last_4 => card_response['last4'],
+                                   :address1 => card_response['address_line1'],
+                                   :address2 => card_response['address_line2'],
+                                   :city => card_response['address_city'],
+                                   :state => card_response['address_state'],
+                                   :zip => card_response['address_zip'],
+                                   :country => card_response['address_country']
       else
         raise response.message
       end
@@ -178,12 +197,9 @@ module Killbill::Stripe
 
       # The remaining elements in payment_methods are not in our table (this should never happen?!)
       payment_methods.each do |payment_method_info_plugin|
-        add_payment_method kb_account_id,
-                           payment_method_info_plugin.payment_method_id,
-                           { 'cardId' => payment_method_info_plugin.external_payment_method_id },
-                           payment_method_info_plugin.is_default,
-                           call_context,
-                           options
+        StripePaymentMethod.create :kb_account_id => kb_account_id,
+                                   :kb_payment_method_id => payment_method_info_plugin.payment_method_id,
+                                   :stripe_card_id_or_token => payment_method_info_plugin.external_payment_method_id
       end
     end
 

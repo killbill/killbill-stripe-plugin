@@ -17,7 +17,7 @@ module Killbill::Stripe
                     :zip,
                     :country
 
-    alias_attribute :external_payment_method_id, :stripe_token
+    alias_attribute :external_payment_method_id, :stripe_card_id_or_token
 
     def self.from_kb_account_id(kb_account_id)
       find_all_by_kb_account_id_and_is_deleted(kb_account_id, false)
@@ -51,10 +51,12 @@ module Killbill::Stripe
     def self.search_query(search_key, offset = nil, limit = nil)
       t = self.arel_table
 
-      # Exact match for kb_account_id, kb_payment_method_id, stripe_token, cc_type, cc_exp_month, cc_exp_year, cc_last_4, state and zip, partial match for the reset
+      # Exact match for kb_account_id, kb_payment_method_id, stripe_customer_id, stripe_card_id_or_token, cc_type, cc_exp_month,
+      # cc_exp_year, cc_last_4, state and zip, partial match for the reset
       where_clause =     t[:kb_account_id].eq(search_key)
                      .or(t[:kb_payment_method_id].eq(search_key))
-                     .or(t[:stripe_token].eq(search_key))
+                     .or(t[:stripe_customer_id].eq(search_key))
+                     .or(t[:stripe_card_id_or_token].eq(search_key))
                      .or(t[:cc_type].eq(search_key))
                      .or(t[:state].eq(search_key))
                      .or(t[:zip].eq(search_key))
