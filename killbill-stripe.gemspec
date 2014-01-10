@@ -25,6 +25,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'killbill', '~> 1.9.0'
   s.add_dependency 'activemerchant', '~> 1.42.3'
   s.add_dependency 'activerecord', '~> 3.2.1'
+  s.add_dependency 'money', '~> 6.0.0'
   s.add_dependency 'sinatra', '~> 1.3.4'
   if defined?(JRUBY_VERSION)
     s.add_dependency 'activerecord-jdbcmysql-adapter', '~> 1.2.9'

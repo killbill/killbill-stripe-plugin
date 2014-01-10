@@ -14,7 +14,8 @@ module Killbill::Stripe
     end
 
     def process_payment(kb_account_id, kb_payment_id, kb_payment_method_id, amount, currency, call_context = nil, options = {})
-      amount_in_cents = (amount * 100).to_i
+      # Use Money to compute the amount in cents, as it depends on the currency (1 cent of BTC is 1 Satoshi, not 0.01 BTC)
+      amount_in_cents = Money.new_with_amount(amount, currency).cents.to_i
 
       # If the payment was already made, just return the status
       stripe_transaction = StripeTransaction.from_kb_payment_id(kb_payment_id) rescue nil
@@ -30,7 +31,7 @@ module Killbill::Stripe
 
       # Go to Stripe
       stripe_response = Killbill::Stripe.gateway.purchase amount_in_cents, pm.stripe_card_id_or_token, options
-      response = save_response_and_transaction stripe_response, :charge, kb_payment_id, amount_in_cents
+      response = save_response_and_transaction stripe_response, :charge, kb_payment_id, amount_in_cents, currency
 
       response.to_payment_response
     end
@@ -42,13 +43,14 @@ module Killbill::Stripe
     end
 
     def process_refund(kb_account_id, kb_payment_id, amount, currency, call_context = nil, options = {})
-      amount_in_cents = (amount * 100).to_i
+      # Use Money to compute the amount in cents, as it depends on the currency (1 cent of BTC is 1 Satoshi, not 0.01 BTC)
+      amount_in_cents = Money.new_with_amount(amount, currency).cents.to_i
 
       stripe_transaction = StripeTransaction.find_candidate_transaction_for_refund(kb_payment_id, amount_in_cents)
 
       # Go to Stripe
       stripe_response = Killbill::Stripe.gateway.refund amount_in_cents, stripe_transaction.stripe_txn_id, options
-      response = save_response_and_transaction stripe_response, :refund, kb_payment_id, amount_in_cents
+      response = save_response_and_transaction stripe_response, :refund, kb_payment_id, amount_in_cents, currency
 
       response.to_refund_response
     end
@@ -215,7 +217,7 @@ module Killbill::Stripe
       prop.nil? ? nil : prop.value
     end
 
-    def save_response_and_transaction(stripe_response, api_call, kb_payment_id=nil, amount_in_cents=0)
+    def save_response_and_transaction(stripe_response, api_call, kb_payment_id=nil, amount_in_cents=0, currency=nil)
       @logger.warn "Unsuccessful #{api_call}: #{stripe_response.message}" unless stripe_response.success?
 
       # Save the response to our logs
@@ -225,6 +227,7 @@ module Killbill::Stripe
       if response.success and !kb_payment_id.blank? and !response.stripe_txn_id.blank?
         # Record the transaction
         transaction = response.create_stripe_transaction!(:amount_in_cents => amount_in_cents,
+                                                          :currency => currency,
                                                           :api_call => api_call,
                                                           :kb_payment_id => kb_payment_id,
                                                           :stripe_txn_id => response.stripe_txn_id)

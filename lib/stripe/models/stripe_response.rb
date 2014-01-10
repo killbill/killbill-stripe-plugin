@@ -130,11 +130,13 @@ module Killbill::Stripe
     def to_killbill_response(type)
       if stripe_transaction.nil?
         amount_in_cents = nil
+        currency = nil
         created_date = created_at
         first_payment_reference_id = nil
         second_payment_reference_id = nil
       else
         amount_in_cents = stripe_transaction.amount_in_cents
+        currency = stripe_transaction.currency
         created_date = stripe_transaction.created_at
         first_payment_reference_id = params_balance_transaction
         second_payment_reference_id = stripe_transaction.stripe_txn_id
@@ -149,7 +151,8 @@ module Killbill::Stripe
 
       if type == :payment
         p_info_plugin = Killbill::Plugin::Model::PaymentInfoPlugin.new
-        p_info_plugin.amount = BigDecimal.new(amount_in_cents.to_s) / 100.0 if amount_in_cents
+        p_info_plugin.amount = Money.new(amount_in_cents, currency).to_d if currency
+        p_info_plugin.currency = currency
         p_info_plugin.created_date = created_date
         p_info_plugin.effective_date = effective_date
         p_info_plugin.status = (success ? :PROCESSED : :ERROR)
@@ -160,7 +163,8 @@ module Killbill::Stripe
         p_info_plugin
       else
         r_info_plugin = Killbill::Plugin::Model::RefundInfoPlugin.new
-        r_info_plugin.amount = BigDecimal.new(amount_in_cents.to_s) / 100.0 if amount_in_cents
+        r_info_plugin.amount = Money.new(amount_in_cents, currency).to_d if currency
+        r_info_plugin.currency = currency
         r_info_plugin.created_date = created_date
         r_info_plugin.effective_date = effective_date
         r_info_plugin.status = (success ? :PROCESSED : :ERROR)

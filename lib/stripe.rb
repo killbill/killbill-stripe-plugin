@@ -1,6 +1,7 @@
 require 'active_record'
 require 'activemerchant'
 require 'bigdecimal'
+require 'money'
 require 'pathname'
 require 'set'
 require 'sinatra'

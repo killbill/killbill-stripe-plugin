@@ -31,6 +31,7 @@ CREATE TABLE `stripe_transactions` (
   `kb_payment_id` varchar(255) NOT NULL,
   `stripe_txn_id` varchar(255) NOT NULL,
   `amount_in_cents` int(11) NOT NULL,
+  `currency` char(3) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
