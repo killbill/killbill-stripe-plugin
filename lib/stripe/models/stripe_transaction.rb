@@ -4,18 +4,11 @@ module Killbill::Stripe
     attr_accessible :amount_in_cents, :currency, :api_call, :kb_payment_id, :stripe_txn_id
 
     def self.from_kb_payment_id(kb_payment_id)
-      single_transaction_from_kb_payment_id :charge, kb_payment_id
+      transaction_from_kb_payment_id :charge, kb_payment_id, :single
     end
 
-    def self.refund_from_kb_payment_id(kb_payment_id)
-      single_transaction_from_kb_payment_id :refund, kb_payment_id
-    end
-
-    def self.single_transaction_from_kb_payment_id(api_call, kb_payment_id)
-      stripe_transactions = find_all_by_api_call_and_kb_payment_id(api_call, kb_payment_id)
-      raise "Unable to find Stripe transaction id for payment #{kb_payment_id}" if stripe_transactions.empty?
-      raise "Killbill payment mapping to multiple Stripe transactions for payment #{kb_payment_id}" if stripe_transactions.size > 1
-      stripe_transactions[0]
+    def self.refunds_from_kb_payment_id(kb_payment_id)
+      transaction_from_kb_payment_id :refund, kb_payment_id, :multiple
     end
 
     def self.find_candidate_transaction_for_refund(kb_payment_id, amount_in_cents)
@@ -33,6 +26,19 @@ module Killbill::Stripe
       raise "Amount #{amount_in_cents} too large to refund for payment #{kb_payment_id}" if amount_left_to_refund_in_cents < amount_in_cents
 
       stripe_transactions.first
+    end
+
+    private
+
+    def self.transaction_from_kb_payment_id(api_call, kb_payment_id, how_many)
+      stripe_transactions = find_all_by_api_call_and_kb_payment_id(api_call, kb_payment_id)
+      raise "Unable to find Stripe transaction id for payment #{kb_payment_id}" if stripe_transactions.empty?
+      if how_many == :single
+        raise "Killbill payment mapping to multiple Stripe transactions for payment #{kb_payment_id}" if stripe_transactions.size > 1
+        stripe_transactions[0]
+      else
+        stripe_transactions
+      end
     end
   end
 end

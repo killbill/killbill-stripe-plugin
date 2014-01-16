@@ -57,8 +57,9 @@ module Killbill::Stripe
 
     def get_refund_info(kb_account_id, kb_payment_id, tenant_context = nil, options = {})
       # We assume the refund is immutable in Stripe and only look at our tables
-      stripe_transaction = StripeTransaction.refund_from_kb_payment_id(kb_payment_id)
-      stripe_transaction.stripe_response.to_refund_response
+      stripe_transactions = StripeTransaction.refunds_from_kb_payment_id(kb_payment_id)
+
+      stripe_transactions.map { |t| t.stripe_response.to_refund_response }
     end
 
     def add_payment_method(kb_account_id, kb_payment_method_id, payment_method_props, set_default, call_context = nil, options = {})

@@ -183,8 +183,8 @@ module Killbill::Stripe
         amount_in_cents = stripe_transaction.amount_in_cents
         currency = stripe_transaction.currency
         created_date = stripe_transaction.created_at
-        first_payment_reference_id = params_balance_transaction
-        second_payment_reference_id = stripe_transaction.stripe_txn_id
+        first_reference_id = params_balance_transaction
+        second_reference_id = stripe_transaction.stripe_txn_id
       end
 
       unless params_created.blank?
@@ -204,11 +204,12 @@ module Killbill::Stripe
         p_info_plugin.status = (success ? :PROCESSED : :ERROR)
         p_info_plugin.gateway_error = gateway_error
         p_info_plugin.gateway_error_code = gateway_error_code
-        p_info_plugin.first_payment_reference_id = first_payment_reference_id
-        p_info_plugin.second_payment_reference_id = second_payment_reference_id
+        p_info_plugin.first_payment_reference_id = first_reference_id
+        p_info_plugin.second_payment_reference_id = second_reference_id
         p_info_plugin
       else
         r_info_plugin = Killbill::Plugin::Model::RefundInfoPlugin.new
+        r_info_plugin.kb_payment_id = kb_payment_id
         r_info_plugin.amount = Money.new(amount_in_cents, currency).to_d if currency
         r_info_plugin.currency = currency
         r_info_plugin.created_date = created_date
@@ -216,7 +217,8 @@ module Killbill::Stripe
         r_info_plugin.status = (success ? :PROCESSED : :ERROR)
         r_info_plugin.gateway_error = gateway_error
         r_info_plugin.gateway_error_code = gateway_error_code
-        r_info_plugin.reference_id = first_payment_reference_id
+        r_info_plugin.first_refund_reference_id = first_reference_id
+        r_info_plugin.second_refund_reference_id = second_reference_id
         r_info_plugin
       end
     end
