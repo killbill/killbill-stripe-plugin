@@ -22,7 +22,7 @@
         <version>5</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.ning.killbill.ruby</groupId>
+    <groupId>org.kill-bill.billing.plugin.ruby</groupId>
     <artifactId>stripe-plugin</artifactId>
     <packaging>pom</packaging>
     <version>0.1.0</version>
