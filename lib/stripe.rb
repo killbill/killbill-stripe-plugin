@@ -1,27 +1,24 @@
+require 'action_controller'
 require 'active_record'
-require 'activemerchant'
+require 'action_view'
+require 'active_merchant'
+require 'active_support'
 require 'bigdecimal'
 require 'money'
 require 'pathname'
-require 'set'
 require 'sinatra'
 require 'singleton'
 require 'yaml'
 
 require 'killbill'
-
-require 'stripe/config/configuration'
-require 'stripe/config/properties'
+require 'killbill/helpers/active_merchant'
 
 require 'stripe/api'
 require 'stripe/private_api'
 
-require 'stripe/models/stripe_payment_method'
-require 'stripe/models/stripe_response'
-require 'stripe/models/stripe_transaction'
-
-require 'stripe/stripe_utils'
-require 'stripe/stripe/gateway'
+require 'stripe/models/payment_method'
+require 'stripe/models/response'
+require 'stripe/models/transaction'
 
 class Object
   def blank?

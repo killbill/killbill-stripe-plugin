@@ -39,31 +39,31 @@ describe Killbill::Stripe::PaymentPlugin do
   it 'should be able to create and retrieve payment methods' do
     pm = create_payment_method
 
-    pms = @plugin.get_payment_methods(pm.kb_account_id)
+    pms = @plugin.get_payment_methods(pm.kb_account_id, false, nil)
     pms.size.should == 1
-    pms[0].external_payment_method_id.should == pm.stripe_card_id_or_token
+    pms[0].external_payment_method_id.should == pm.stripe_token
 
-    pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id)
-    pm_details.external_payment_method_id.should == pm.stripe_card_id_or_token
+    pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, nil)
+    pm_details.external_payment_method_id.should == pm.stripe_token
 
-    pms_found = @plugin.search_payment_methods pm.cc_last_4
+    pms_found = @plugin.search_payment_methods pm.cc_last_4, 0, 10, nil
     pms_found = pms_found.iterator.to_a
     pms_found.size.should == 1
     pms_found.first.external_payment_method_id.should == pm_details.external_payment_method_id
 
-    @plugin.delete_payment_method(pm.kb_account_id, pm.kb_payment_method_id)
+    @plugin.delete_payment_method(pm.kb_account_id, pm.kb_payment_method_id, nil)
 
-    @plugin.get_payment_methods(pm.kb_account_id).size.should == 0
-    lambda { @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id) }.should raise_error RuntimeError
+    @plugin.get_payment_methods(pm.kb_account_id, false, nil).size.should == 0
+    lambda { @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, nil) }.should raise_error RuntimeError
 
     # Verify we can add multiple payment methods
     pm1 = create_payment_method(pm.kb_account_id)
     pm2 = create_payment_method(pm.kb_account_id)
 
-    pms = @plugin.get_payment_methods(pm.kb_account_id)
+    pms = @plugin.get_payment_methods(pm.kb_account_id, false, nil)
     pms.size.should == 2
-    pms[0].external_payment_method_id.should == pm1.stripe_card_id_or_token
-    pms[1].external_payment_method_id.should == pm2.stripe_card_id_or_token
+    pms[0].external_payment_method_id.should == pm1.stripe_token
+    pms[1].external_payment_method_id.should == pm2.stripe_token
   end
 
   it 'should be able to charge and refund' do
@@ -72,34 +72,38 @@ describe Killbill::Stripe::PaymentPlugin do
     currency = 'USD'
     kb_payment_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, kb_payment_id, pm.kb_payment_method_id, amount, currency
+    payment_response = @plugin.process_payment pm.kb_account_id, kb_payment_id, pm.kb_payment_method_id, amount, currency, nil
     payment_response.amount.should == amount
     payment_response.status.should == :PROCESSED
 
     # Verify our table directly
-    response = Killbill::Stripe::StripeResponse.find_by_api_call_and_kb_payment_id :charge, kb_payment_id
+    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :charge, kb_payment_id)
+    responses.size.should == 1
+    response = responses.first
     response.test.should be_true
     response.success.should be_true
     response.message.should == 'Transaction approved'
 
-    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id
+    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, nil
     payment_response.amount.should == amount
     payment_response.status.should == :PROCESSED
 
     # Check we cannot refund an amount greater than the original charge
-    lambda { @plugin.process_refund pm.kb_account_id, kb_payment_id, amount + 1, currency }.should raise_error RuntimeError
+    lambda { @plugin.process_refund pm.kb_account_id, kb_payment_id, amount + 1, currency, nil }.should raise_error RuntimeError
 
-    refund_response = @plugin.process_refund pm.kb_account_id, kb_payment_id, amount, currency
+    refund_response = @plugin.process_refund pm.kb_account_id, kb_payment_id, amount, currency, nil
     refund_response.amount.should == amount
     refund_response.status.should == :PROCESSED
 
     # Verify our table directly
-    response = Killbill::Stripe::StripeResponse.find_by_api_call_and_kb_payment_id :refund, kb_payment_id
+    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :refund, kb_payment_id)
+    responses.size.should == 1
+    response = responses.first
     response.test.should be_true
     response.success.should be_true
 
     # Check we can retrieve the refund
-    refund_responses = @plugin.get_refund_info pm.kb_account_id, kb_payment_id
+    refund_responses = @plugin.get_refund_info pm.kb_account_id, kb_payment_id, nil
     refund_responses.size.should == 1
     # Apparently, Stripe returns positive amounts for refunds
     refund_responses[0].amount.should == amount
@@ -109,7 +113,7 @@ describe Killbill::Stripe::PaymentPlugin do
     second_amount = BigDecimal.new("294.71")
     second_kb_payment_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, second_kb_payment_id, pm.kb_payment_method_id, second_amount, currency
+    payment_response = @plugin.process_payment pm.kb_account_id, second_kb_payment_id, pm.kb_payment_method_id, second_amount, currency, nil
     payment_response.amount.should == second_amount
     payment_response.status.should == :PROCESSED
   end
@@ -160,13 +164,13 @@ describe Killbill::Stripe::PaymentPlugin do
 
     info = Killbill::Plugin::Model::PaymentMethodPlugin.new
     info.properties = properties
-    payment_method = @plugin.add_payment_method(kb_account_id, kb_payment_method_id, info, true)
+    payment_method = @plugin.add_payment_method(kb_account_id, kb_payment_method_id, info, true, nil)
 
     pm = Killbill::Stripe::StripePaymentMethod.from_kb_payment_method_id kb_payment_method_id
     pm.should == payment_method
     pm.kb_account_id.should == kb_account_id
     pm.kb_payment_method_id.should == kb_payment_method_id
-    pm.stripe_card_id_or_token.should_not be_nil
+    pm.stripe_token.should_not be_nil
     pm.cc_first_name.should == cc_first_name + ' ' + cc_last_name
     pm.cc_last_name.should be_nil
     pm.cc_type.should == cc_type

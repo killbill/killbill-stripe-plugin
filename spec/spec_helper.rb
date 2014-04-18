@@ -13,8 +13,8 @@ end
 
 require 'active_record'
 ActiveRecord::Base.establish_connection(
-  :adapter => 'sqlite3',
-  :database => 'test.db'
+    :adapter => 'sqlite3',
+    :database => 'test.db'
 )
 # For debugging
 #ActiveRecord::Base.logger = Logger.new(STDOUT)

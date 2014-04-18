@@ -1,4 +1,4 @@
 require 'stripe'
-require 'stripe/config/application'
+require 'stripe/application'
 
 run Sinatra::Application

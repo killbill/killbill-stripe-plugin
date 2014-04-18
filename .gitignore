@@ -27,9 +27,6 @@ Gemfile.lock
 # Build directory
 killbill-stripe/
 
-# Config file
-stripe.yml
-
 # Testing database
 test.db
 

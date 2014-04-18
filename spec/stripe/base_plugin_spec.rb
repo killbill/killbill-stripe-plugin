@@ -31,13 +31,13 @@ describe Killbill::Stripe::PaymentPlugin do
   it 'should reset payment methods' do
     kb_account_id = '129384'
 
-    @plugin.get_payment_methods(kb_account_id).size.should == 0
+    @plugin.get_payment_methods(kb_account_id, false, nil).size.should == 0
     verify_pms kb_account_id, 0
 
     # Create a pm with a kb_payment_method_id
     Killbill::Stripe::StripePaymentMethod.create :kb_account_id => kb_account_id,
                                                  :kb_payment_method_id => 'kb-1',
-                                                 :stripe_card_id_or_token => 'stripe-1'
+                                                 :stripe_token => 'stripe-1'
     verify_pms kb_account_id, 1
 
     # Add some in KillBill and reset
@@ -51,8 +51,8 @@ describe Killbill::Stripe::PaymentPlugin do
 
     # Add a payment method without a kb_payment_method_id
     Killbill::Stripe::StripePaymentMethod.create :kb_account_id => kb_account_id,
-                                                 :stripe_card_id_or_token => 'stripe-5'
-    @plugin.get_payment_methods(kb_account_id).size.should == 5
+                                                 :stripe_token => 'stripe-5'
+    @plugin.get_payment_methods(kb_account_id, false, nil).size.should == 5
 
     # Verify we can match it
     payment_methods << create_pm_info_plugin(kb_account_id, 'kb-5', false, 'stripe-5')
@@ -65,7 +65,7 @@ describe Killbill::Stripe::PaymentPlugin do
   private
 
   def verify_pms(kb_account_id, size)
-    pms = @plugin.get_payment_methods(kb_account_id)
+    pms = @plugin.get_payment_methods(kb_account_id, false, nil)
     pms.size.should == size
     pms.each do |pm|
       pm.account_id.should == kb_account_id
