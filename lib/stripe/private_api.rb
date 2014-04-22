@@ -14,7 +14,7 @@ module Killbill #:nodoc:
         Killbill::Stripe::StripePaymentMethod.create! :kb_account_id        => params[:kbAccountId],
                                                       :kb_payment_method_id => nil,
                                                       :stripe_customer_id   => stripe_customer_id,
-                                                      :stripe_token         => params[:stripeToken],
+                                                      :token                => params[:stripeToken],
                                                       :cc_first_name        => params[:stripeCardName],
                                                       :cc_last_name         => nil,
                                                       :cc_type              => params[:stripeCardType],

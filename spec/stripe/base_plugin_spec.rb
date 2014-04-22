@@ -14,10 +14,10 @@ describe Killbill::Stripe::PaymentPlugin do
       eos
       file.close
 
-      @plugin = Killbill::Stripe::PaymentPlugin.new
-      @plugin.logger = Logger.new(STDOUT)
+      @plugin              = Killbill::Stripe::PaymentPlugin.new
+      @plugin.logger       = Logger.new(STDOUT)
       @plugin.logger.level = Logger::INFO
-      @plugin.conf_dir = File.dirname(file)
+      @plugin.conf_dir     = File.dirname(file)
 
       # Start the plugin here - since the config file will be deleted
       @plugin.start_plugin
@@ -35,9 +35,9 @@ describe Killbill::Stripe::PaymentPlugin do
     verify_pms kb_account_id, 0
 
     # Create a pm with a kb_payment_method_id
-    Killbill::Stripe::StripePaymentMethod.create :kb_account_id => kb_account_id,
+    Killbill::Stripe::StripePaymentMethod.create :kb_account_id        => kb_account_id,
                                                  :kb_payment_method_id => 'kb-1',
-                                                 :stripe_token => 'stripe-1'
+                                                 :token                => 'stripe-1'
     verify_pms kb_account_id, 1
 
     # Add some in KillBill and reset
@@ -51,7 +51,7 @@ describe Killbill::Stripe::PaymentPlugin do
 
     # Add a payment method without a kb_payment_method_id
     Killbill::Stripe::StripePaymentMethod.create :kb_account_id => kb_account_id,
-                                                 :stripe_token => 'stripe-5'
+                                                 :token         => 'stripe-5'
     @plugin.get_payment_methods(kb_account_id, false, nil).size.should == 5
 
     # Verify we can match it
@@ -75,10 +75,10 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   def create_pm_info_plugin(kb_account_id, kb_payment_method_id, is_default, external_payment_method_id)
-    pm_info_plugin = Killbill::Plugin::Model::PaymentMethodInfoPlugin.new
-    pm_info_plugin.account_id = kb_account_id
-    pm_info_plugin.payment_method_id = kb_payment_method_id
-    pm_info_plugin.is_default = is_default
+    pm_info_plugin                            = Killbill::Plugin::Model::PaymentMethodInfoPlugin.new
+    pm_info_plugin.account_id                 = kb_account_id
+    pm_info_plugin.payment_method_id          = kb_payment_method_id
+    pm_info_plugin.is_default                 = is_default
     pm_info_plugin.external_payment_method_id = external_payment_method_id
     pm_info_plugin
   end

@@ -8,25 +8,25 @@ describe Killbill::Stripe::StripePaymentMethod do
   it 'should search all fields' do
     do_search('foo').size.should == 0
 
-    pm = Killbill::Stripe::StripePaymentMethod.create :kb_account_id => '11-22-33-44',
+    pm = Killbill::Stripe::StripePaymentMethod.create :kb_account_id        => '11-22-33-44',
                                                       :kb_payment_method_id => '55-66-77-88',
-                                                      :stripe_customer_id => '123xka',
-                                                      :stripe_token => 38102343,
-                                                      :cc_first_name => 'ccFirstName',
-                                                      :cc_last_name => 'ccLastName',
-                                                      :cc_type => 'ccType',
-                                                      :cc_exp_month => 10,
-                                                      :cc_exp_year => 11,
-                                                      :cc_last_4 => 1234,
-                                                      :address1 => 'address1',
-                                                      :address2 => 'address2',
-                                                      :city => 'city',
-                                                      :state => 'state',
-                                                      :zip => 'zip',
-                                                      :country => 'country'
+                                                      :stripe_customer_id   => '123xka',
+                                                      :token                => 38102343,
+                                                      :cc_first_name        => 'ccFirstName',
+                                                      :cc_last_name         => 'ccLastName',
+                                                      :cc_type              => 'ccType',
+                                                      :cc_exp_month         => 10,
+                                                      :cc_exp_year          => 11,
+                                                      :cc_last_4            => 1234,
+                                                      :address1             => 'address1',
+                                                      :address2             => 'address2',
+                                                      :city                 => 'city',
+                                                      :state                => 'state',
+                                                      :zip                  => 'zip',
+                                                      :country              => 'country'
 
     do_search('foo').size.should == 0
-    do_search(pm.stripe_token).size.should == 1
+    do_search(pm.token).size.should == 1
     do_search('ccType').size.should == 1
     # Exact match only for cc_last_4
     do_search('123').size.should == 0
@@ -35,26 +35,26 @@ describe Killbill::Stripe::StripePaymentMethod do
     do_search('address').size.should == 1
     do_search('Name').size.should == 1
 
-    pm2 = Killbill::Stripe::StripePaymentMethod.create :kb_account_id => '22-33-44-55',
+    pm2 = Killbill::Stripe::StripePaymentMethod.create :kb_account_id        => '22-33-44-55',
                                                        :kb_payment_method_id => '66-77-88-99',
-                                                       :stripe_customer_id => '123xka',
-                                                       :stripe_token => 49384029302,
-                                                       :cc_first_name => 'ccFirstName',
-                                                       :cc_last_name => 'ccLastName',
-                                                       :cc_type => 'ccType',
-                                                       :cc_exp_month => 10,
-                                                       :cc_exp_year => 11,
-                                                       :cc_last_4 => 1234,
-                                                       :address1 => 'address1',
-                                                       :address2 => 'address2',
-                                                       :city => 'city',
-                                                       :state => 'state',
-                                                       :zip => 'zip',
-                                                       :country => 'country'
+                                                       :stripe_customer_id   => '123xka',
+                                                       :token                => 49384029302,
+                                                       :cc_first_name        => 'ccFirstName',
+                                                       :cc_last_name         => 'ccLastName',
+                                                       :cc_type              => 'ccType',
+                                                       :cc_exp_month         => 10,
+                                                       :cc_exp_year          => 11,
+                                                       :cc_last_4            => 1234,
+                                                       :address1             => 'address1',
+                                                       :address2             => 'address2',
+                                                       :city                 => 'city',
+                                                       :state                => 'state',
+                                                       :zip                  => 'zip',
+                                                       :country              => 'country'
 
     do_search('foo').size.should == 0
-    do_search(pm.stripe_token).size.should == 1
-    do_search(pm2.stripe_token).size.should == 1
+    do_search(pm.token).size.should == 1
+    do_search(pm2.token).size.should == 1
     do_search('ccType').size.should == 2
     # Exact match only for cc_last_4
     do_search('123').size.should == 0

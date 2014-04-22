@@ -2,7 +2,7 @@ CREATE TABLE `stripe_payment_methods` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `kb_account_id` varchar(255) NOT NULL,
   `kb_payment_method_id` varchar(255) DEFAULT NULL,
-  `stripe_token` varchar(255) DEFAULT NULL,
+  `token` varchar(255) DEFAULT NULL,
   `stripe_customer_id` varchar(255) DEFAULT NULL,
   `cc_first_name` varchar(255) DEFAULT NULL,
   `cc_last_name` varchar(255) DEFAULT NULL,
