@@ -28,7 +28,8 @@ Gem::Specification.new do |s|
   s.add_dependency 'actionpack', '~> 4.1.0'
   s.add_dependency 'actionview', '~> 4.1.0'
   s.add_dependency 'activesupport', '~> 4.1.0'
-  s.add_dependency 'money', '~> 6.0.0'
+  s.add_dependency 'money', '~> 6.1.1'
+  s.add_dependency 'monetize', '~> 0.3.0'
   s.add_dependency 'sinatra', '~> 1.3.4'
   if defined?(JRUBY_VERSION)
     s.add_dependency 'activerecord-jdbcmysql-adapter', '~> 1.3.7'
