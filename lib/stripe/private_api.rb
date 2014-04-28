@@ -3,7 +3,7 @@ module Killbill #:nodoc:
     class PrivatePaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PrivatePaymentPlugin
 
       def add_payment_method(params)
-        stripe_customer_id = StripePaymentMethod.stripe_customer_id_from_kb_account_id(params[:kbAccountId])
+        stripe_customer_id = StripePaymentMethod.stripe_customer_id_from_kb_account_id(params[:kbAccountId], params[:kbTenantId])
 
         # This will either update the current customer if present, or create a new one
         stripe_response    = gateway.store params[:stripeToken], {:description => params[:kbAccountId], :customer => stripe_customer_id}
@@ -13,6 +13,7 @@ module Killbill #:nodoc:
         # Create the payment method (not associated to a Kill Bill payment method yet)
         Killbill::Stripe::StripePaymentMethod.create! :kb_account_id        => params[:kbAccountId],
                                                       :kb_payment_method_id => nil,
+                                                      :kb_tenant_id         => params[:kbTenantId],
                                                       :stripe_customer_id   => stripe_customer_id,
                                                       :token                => params[:stripeToken],
                                                       :cc_first_name        => params[:stripeCardName],

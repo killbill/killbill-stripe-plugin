@@ -2,7 +2,6 @@ require 'active_record'
 
 ActiveRecord::Schema.define(:version => 20140410153635) do
   create_table "stripe_payment_methods", :force => true do |t|
-    t.string   "kb_account_id",            :null => false
     t.string   "kb_payment_method_id"      # NULL before Kill Bill knows about it
     t.string   "token"                     # stripe id
     t.string   "stripe_customer_id"
@@ -27,6 +26,8 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.boolean  "is_deleted",               :null => false, :default => false
     t.datetime "created_at",               :null => false
     t.datetime "updated_at",               :null => false
+    t.string   "kb_account_id"
+    t.string   "kb_tenant_id"
   end
 
   add_index(:stripe_payment_methods, :kb_account_id)
@@ -41,6 +42,8 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "currency",                       :null => false
     t.datetime "created_at",                     :null => false
     t.datetime "updated_at",                     :null => false
+    t.string   "kb_account_id",                  :null => false
+    t.string   "kb_tenant_id",                   :null => false
   end
 
   add_index(:stripe_transactions, :kb_payment_id)
@@ -107,5 +110,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.boolean  "success"
     t.datetime "created_at",        :null => false
     t.datetime "updated_at",        :null => false
+    t.string   "kb_account_id"
+    t.string   "kb_tenant_id"
   end
 end

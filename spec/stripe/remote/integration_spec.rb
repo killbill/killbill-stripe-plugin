@@ -13,6 +13,10 @@ describe Killbill::Stripe::PaymentPlugin do
     svcs            = {:account_user_api => @account_api}
     @plugin.kb_apis = Killbill::Plugin::KillbillApi.new('stripe', svcs)
 
+    @call_context           = Killbill::Plugin::Model::CallContext.new
+    @call_context.tenant_id = '00000011-0022-0033-0044-000000000055'
+    @call_context           = @call_context.to_ruby(@call_context)
+
     @plugin.logger       = Logger.new(STDOUT)
     @plugin.logger.level = Logger::INFO
     @plugin.conf_dir     = File.expand_path(File.dirname(__FILE__) + '../../../../')
@@ -24,42 +28,42 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should be able to create and retrieve payment methods' do
-    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod)
+    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id)
 
-    pms = @plugin.get_payment_methods(pm.kb_account_id, false, nil)
+    pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
     pms[0].external_payment_method_id.should == pm.token
 
-    pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, nil)
+    pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context)
     pm_details.external_payment_method_id.should == pm.token
 
-    pms_found = @plugin.search_payment_methods pm.cc_last_4, 0, 10, nil
+    pms_found = @plugin.search_payment_methods pm.cc_last_4, 0, 10, [], @call_context
     pms_found = pms_found.iterator.to_a
     pms_found.size.should == 1
     pms_found.first.external_payment_method_id.should == pm_details.external_payment_method_id
 
-    @plugin.delete_payment_method(pm.kb_account_id, pm.kb_payment_method_id, nil)
+    @plugin.delete_payment_method(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context)
 
-    @plugin.get_payment_methods(pm.kb_account_id, false, nil).size.should == 0
-    lambda { @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, nil) }.should raise_error RuntimeError
+    @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context).size.should == 0
+    lambda { @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context) }.should raise_error RuntimeError
 
     # Verify we can add multiple payment methods
-    pm1 = create_payment_method(::Killbill::Stripe::StripePaymentMethod, pm.kb_account_id)
-    pm2 = create_payment_method(::Killbill::Stripe::StripePaymentMethod, pm.kb_account_id)
+    pm1 = create_payment_method(::Killbill::Stripe::StripePaymentMethod, pm.kb_account_id, @call_context.tenant_id)
+    pm2 = create_payment_method(::Killbill::Stripe::StripePaymentMethod, pm.kb_account_id, @call_context.tenant_id)
 
-    pms = @plugin.get_payment_methods(pm.kb_account_id, false, nil)
+    pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 2
     pms[0].external_payment_method_id.should == pm1.token
     pms[1].external_payment_method_id.should == pm2.token
   end
 
   it 'should be able to charge and refund' do
-    pm            = create_payment_method(::Killbill::Stripe::StripePaymentMethod)
+    pm            = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id)
     amount        = BigDecimal.new("100")
     currency      = 'USD'
     kb_payment_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, kb_payment_id, pm.kb_payment_method_id, amount, currency, nil
+    payment_response = @plugin.process_payment pm.kb_account_id, kb_payment_id, pm.kb_payment_method_id, amount, currency, [], @call_context
     payment_response.amount.should == amount
     payment_response.status.should == :PROCESSED
 
@@ -71,14 +75,14 @@ describe Killbill::Stripe::PaymentPlugin do
     response.success.should be_true
     response.message.should == 'Transaction approved'
 
-    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, nil
+    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, [], @call_context
     payment_response.amount.should == amount
     payment_response.status.should == :PROCESSED
 
     # Check we cannot refund an amount greater than the original charge
-    lambda { @plugin.process_refund pm.kb_account_id, kb_payment_id, amount + 1, currency, nil }.should raise_error RuntimeError
+    lambda { @plugin.process_refund pm.kb_account_id, kb_payment_id, amount + 1, currency, [], @call_context }.should raise_error RuntimeError
 
-    refund_response = @plugin.process_refund pm.kb_account_id, kb_payment_id, amount, currency, nil
+    refund_response = @plugin.process_refund pm.kb_account_id, kb_payment_id, amount, currency, [], @call_context
     refund_response.amount.should == amount
     refund_response.status.should == :PROCESSED
 
@@ -90,7 +94,7 @@ describe Killbill::Stripe::PaymentPlugin do
     response.success.should be_true
 
     # Check we can retrieve the refund
-    refund_responses = @plugin.get_refund_info pm.kb_account_id, kb_payment_id, nil
+    refund_responses = @plugin.get_refund_info pm.kb_account_id, kb_payment_id, [], @call_context
     refund_responses.size.should == 1
     # Apparently, Stripe returns positive amounts for refunds
     refund_responses[0].amount.should == amount
@@ -100,7 +104,7 @@ describe Killbill::Stripe::PaymentPlugin do
     second_amount        = BigDecimal.new("294.71")
     second_kb_payment_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, second_kb_payment_id, pm.kb_payment_method_id, second_amount, currency, nil
+    payment_response = @plugin.process_payment pm.kb_account_id, second_kb_payment_id, pm.kb_payment_method_id, second_amount, currency, [], @call_context
     payment_response.amount.should == second_amount
     payment_response.status.should == :PROCESSED
   end

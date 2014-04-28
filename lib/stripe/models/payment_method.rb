@@ -4,8 +4,8 @@ module Killbill #:nodoc:
 
       self.table_name = 'stripe_payment_methods'
 
-      def self.from_response(kb_account_id, kb_payment_method_id, cc_or_token, response, options, extra_params = {})
-        stripe_customer_id = self.stripe_customer_id_from_kb_account_id(kb_account_id)
+      def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {})
+        stripe_customer_id = self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
         unless stripe_customer_id.blank?
           card_response     = response.responses.first.params
           customer_response = response.responses.last.params
@@ -16,6 +16,7 @@ module Killbill #:nodoc:
 
         super(kb_account_id,
               kb_payment_method_id,
+              kb_tenant_id,
               cc_or_token,
               response,
               options,
@@ -42,8 +43,8 @@ module Killbill #:nodoc:
         super.or(t[:stripe_customer_id].eq(search_key))
       end
 
-      def self.stripe_customer_id_from_kb_account_id(kb_account_id)
-        pms = from_kb_account_id(kb_account_id)
+      def self.stripe_customer_id_from_kb_account_id(kb_account_id, tenant_id)
+        pms = from_kb_account_id(kb_account_id, tenant_id)
         return nil if pms.empty?
 
         stripe_customer_ids = Set.new

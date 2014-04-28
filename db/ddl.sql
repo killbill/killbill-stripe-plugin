@@ -1,6 +1,5 @@
 CREATE TABLE `stripe_payment_methods` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `kb_account_id` varchar(255) NOT NULL,
   `kb_payment_method_id` varchar(255) DEFAULT NULL,
   `token` varchar(255) DEFAULT NULL,
   `stripe_customer_id` varchar(255) DEFAULT NULL,
@@ -25,6 +24,8 @@ CREATE TABLE `stripe_payment_methods` (
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
+  `kb_account_id` varchar(255) DEFAULT NULL,
+  `kb_tenant_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `index_stripe_payment_methods_on_kb_account_id` (`kb_account_id`),
   KEY `index_stripe_payment_methods_on_kb_payment_method_id` (`kb_payment_method_id`)
@@ -40,6 +41,8 @@ CREATE TABLE `stripe_transactions` (
   `currency` varchar(255) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
+  `kb_account_id` varchar(255) NOT NULL,
+  `kb_tenant_id` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `index_stripe_transactions_on_kb_payment_id` (`kb_payment_id`)
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
@@ -107,5 +110,7 @@ CREATE TABLE `stripe_responses` (
   `success` tinyint(1) DEFAULT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
+  `kb_account_id` varchar(255) DEFAULT NULL,
+  `kb_tenant_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
