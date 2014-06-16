@@ -35,3 +35,6 @@ To build the project:
     rvm use jruby
     bundle install
     jbundle install
+    rake killbill:clean
+    rake build
+    rake killbill:package
