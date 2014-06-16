@@ -6,16 +6,32 @@ Killbill payment plugin for Stripe.
 Getting started
 ---------------
 
-1. Make sure you can build the project by running the smoke tests: `mvn clean test`
+1. Build the project (see below) and verify you can run local tests: `rake test:spec`
 2. Go to [stripe.com](http://stripe.com/) and create an account. This account will be used as a sandbox environment for testing.
-3. In your Stripe account, click on **Your Account** (top right), then click on **Account Settings** and then on the **API Keys** tab. Write down your Test Secret Key.
-4. Verify the setup by running the killbill-stripe-plugin integration tests (make sure to update your API Key): `mvn clean test -Pintegration -Dkillbill.payment.stripe.apiKey=1234567689abcdef`
-5. Go to your Stripe account, you should see some data (e.g. account created).
-6. Congrats! You're all set!
+3. In your Stripe account, click on **Your Account** (top right), then click on **Account Settings** and then on the **API Keys** tab. Write down your keys.
+4. Create a stripe.yml file under killbill-stripe-plugin with the following:
+
+    ```
+    :stripe:
+      :api_secret_key: 'sk_test_AAABBBCCC'
+      :api_publishable_key: 'pk_test_DDDEEEFFF'
+      :log_file: '/var/tmp/stripe.log'
+      :test: true
+    :database:
+      :adapter: sqlite3
+      :database: test.db
+    ```
+
+5. Verify the setup by running the killbill-stripe-plugin integration tests: `rake test:remote:spec`
+6. Go to your Stripe account, you should see some data (e.g. account created).
+7. Congrats! You're all set!
+
 
 Build
 -----
 
-To build the project, use maven:
+To build the project:
 
-    mvn clean install
+    rvm use jruby
+    bundle install
+    jbundle install
