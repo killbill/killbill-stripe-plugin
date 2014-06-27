@@ -62,13 +62,15 @@ describe Killbill::Stripe::PaymentPlugin do
     amount        = BigDecimal.new("100")
     currency      = 'USD'
     kb_payment_id = SecureRandom.uuid
+    kb_payment_transaction_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, kb_payment_id, pm.kb_payment_method_id, amount, currency, [], @call_context
+    payment_response = @plugin.purchase_payment pm.kb_account_id, kb_payment_id, kb_payment_transaction_id, pm.kb_payment_method_id, amount, currency, [], @call_context
     payment_response.amount.should == amount
     payment_response.status.should == :PROCESSED
+    payment_response.transaction_type.should == :PURCHASE
 
     # Verify our table directly
-    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :charge, kb_payment_id)
+    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :purchase, kb_payment_id)
     responses.size.should == 1
     response = responses.first
     response.test.should be_true
@@ -76,15 +78,18 @@ describe Killbill::Stripe::PaymentPlugin do
     response.message.should == 'Transaction approved'
 
     payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, [], @call_context
-    payment_response.amount.should == amount
-    payment_response.status.should == :PROCESSED
+    payment_response.size.should == 1
+    payment_response[0].amount.should == amount
+    payment_response[0].status.should == :PROCESSED
+    payment_response[0].transaction_type.should == :PURCHASE
 
     # Check we cannot refund an amount greater than the original charge
-    lambda { @plugin.process_refund pm.kb_account_id, kb_payment_id, amount + 1, currency, [], @call_context }.should raise_error RuntimeError
+    lambda { @plugin.refund_payment pm.kb_account_id, kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, amount + 1, currency, [], @call_context }.should raise_error RuntimeError
 
-    refund_response = @plugin.process_refund pm.kb_account_id, kb_payment_id, amount, currency, [], @call_context
+    refund_response = @plugin.refund_payment pm.kb_account_id, kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, amount, currency, [], @call_context
     refund_response.amount.should == amount
     refund_response.status.should == :PROCESSED
+    refund_response.transaction_type.should == :REFUND
 
     # Verify our table directly
     responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :refund, kb_payment_id)
@@ -94,18 +99,23 @@ describe Killbill::Stripe::PaymentPlugin do
     response.success.should be_true
 
     # Check we can retrieve the refund
-    refund_responses = @plugin.get_refund_info pm.kb_account_id, kb_payment_id, [], @call_context
-    refund_responses.size.should == 1
+    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, [], @call_context
+    payment_response.size.should == 2
+    payment_response[0].amount.should == amount
+    payment_response[0].status.should == :PROCESSED
+    payment_response[0].transaction_type.should == :PURCHASE
     # Apparently, Stripe returns positive amounts for refunds
-    refund_responses[0].amount.should == amount
-    refund_responses[0].status.should == :PROCESSED
+    payment_response[1].amount.should == amount
+    payment_response[1].status.should == :PROCESSED
+    payment_response[1].transaction_type.should == :REFUND
 
     # Make sure we can charge again the same payment method
     second_amount        = BigDecimal.new("294.71")
     second_kb_payment_id = SecureRandom.uuid
 
-    payment_response = @plugin.process_payment pm.kb_account_id, second_kb_payment_id, pm.kb_payment_method_id, second_amount, currency, [], @call_context
+    payment_response = @plugin.purchase_payment pm.kb_account_id, second_kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, second_amount, currency, [], @call_context
     payment_response.amount.should == second_amount
     payment_response.status.should == :PROCESSED
+    payment_response.transaction_type.should == :PURCHASE
   end
 end

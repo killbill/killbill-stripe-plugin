@@ -19,7 +19,6 @@ describe Killbill::Stripe::PaymentPlugin do
       @plugin.logger.level = Logger::INFO
       @plugin.conf_dir     = File.dirname(file)
       @account_api         = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaUserAccountApi.new
-      svcs                 = {:account_user_api => @account_api}
       @plugin.kb_apis      = Killbill::Plugin::KillbillApi.new('stripe', {})
 
       # Start the plugin here - since the config file will be deleted

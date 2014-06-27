@@ -6,10 +6,12 @@ module Killbill #:nodoc:
 
       has_one :stripe_transaction
 
-      def self.from_response(api_call, kb_account_id, kb_payment_id, kb_tenant_id, response, extra_params = {})
+      def self.from_response(api_call, kb_account_id, kb_payment_id, kb_payment_transaction_id, transaction_type, kb_tenant_id, response, extra_params = {})
         super(api_call,
               kb_account_id,
               kb_payment_id,
+              kb_payment_transaction_id,
+              transaction_type,
               kb_tenant_id,
               response,
               {
@@ -63,13 +65,12 @@ module Killbill #:nodoc:
               ::Killbill::Stripe::StripeResponse)
       end
 
-      def self.search_where_clause(t, search_key, api_call)
+      def self.search_where_clause(t, search_key)
         where_clause = t[:params_id].eq(search_key)
                    .or(t[:params_card_id].eq(search_key))
 
         # Only search successful payments and refunds
-        where_clause = where_clause.and(t[:api_call].eq(api_call))
-                                   .and(t[:success].eq(true))
+        where_clause = where_clause.and(t[:success].eq(true))
 
         super.or(where_clause)
       end

@@ -20,16 +20,6 @@ describe Killbill::Stripe::StripeResponse do
                                                  :params_card_id => 38102343,
                                                  :success => true
 
-    # Wrong api_call
-    ignored1 = Killbill::Stripe::StripeResponse.create :api_call => 'add_payment_method',
-                                                       :kb_payment_id => pm.kb_payment_id,
-                                                       :kb_account_id => kb_account_id,
-                                                       :kb_tenant_id => kb_tenant_id,
-                                                       :authorization => pm.authorization,
-                                                       :params_id => pm.params_id,
-                                                       :params_card_id => pm.params_card_id,
-                                                       :success => true
-
     # Not successful
     ignored2 = Killbill::Stripe::StripeResponse.create :api_call => 'charge',
                                                        :kb_payment_id => pm.kb_payment_id,
