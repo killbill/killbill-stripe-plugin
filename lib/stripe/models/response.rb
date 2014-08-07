@@ -6,7 +6,7 @@ module Killbill #:nodoc:
 
       has_one :stripe_transaction
 
-      def self.from_response(api_call, kb_account_id, kb_payment_id, kb_payment_transaction_id, transaction_type, kb_tenant_id, response, extra_params = {})
+      def self.from_response(api_call, kb_account_id, kb_payment_id, kb_payment_transaction_id, transaction_type, kb_tenant_id, response, extra_params = {}, model = ::Killbill::Stripe::StripeResponse)
         super(api_call,
               kb_account_id,
               kb_payment_id,
@@ -62,7 +62,7 @@ module Killbill #:nodoc:
                   :params_error_type               => extract(response, 'error', 'type'),
                   :params_error_message            => extract(response, 'error', 'message')
               }.merge!(extra_params),
-              ::Killbill::Stripe::StripeResponse)
+              model)
       end
 
       def self.search_where_clause(t, search_key)
