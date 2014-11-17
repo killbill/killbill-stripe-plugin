@@ -22,8 +22,9 @@ Gem::Specification.new do |s|
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 3.1.6'
-  s.add_dependency 'activemerchant', '~> 1.42.9'
+  s.add_dependency 'killbill', '~> 3.1.12'
+  s.add_dependency 'activemerchant', '~> 1.44.1'
+  s.add_dependency 'offsite_payments', '~> 2.0.1'
   s.add_dependency 'activerecord', '~> 4.1.0'
   s.add_dependency 'actionpack', '~> 4.1.0'
   s.add_dependency 'actionview', '~> 4.1.0'

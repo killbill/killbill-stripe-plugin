@@ -39,9 +39,11 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "kb_payment_id",                  :null => false
     t.string   "kb_payment_transaction_id",      :null => false
     t.string   "transaction_type",               :null => false
+    t.string   "payment_processor_account_id"
     t.string   "txn_id"                          # stripe transaction id
-    t.integer  "amount_in_cents",                :null => false
-    t.string   "currency",                       :null => false
+    # Both null for void
+    t.integer  "amount_in_cents"
+    t.string   "currency"
     t.datetime "created_at",                     :null => false
     t.datetime "updated_at",                     :null => false
     t.string   "kb_account_id",                  :null => false
@@ -55,6 +57,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "kb_payment_id"
     t.string   "kb_payment_transaction_id"
     t.string   "transaction_type"
+    t.string   "payment_processor_account_id"
     t.string   "message"
     t.string   "authorization"
     t.boolean  "fraud_review"

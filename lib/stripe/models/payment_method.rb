@@ -4,7 +4,7 @@ module Killbill #:nodoc:
 
       self.table_name = 'stripe_payment_methods'
 
-      def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {})
+      def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {}, model = ::Killbill::Stripe::StripePaymentMethod)
         stripe_customer_id = self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
         unless stripe_customer_id.blank?
           card_response     = response.responses.first.params
@@ -36,7 +36,7 @@ module Killbill #:nodoc:
                   :zip                => card_response['address_zip'],
                   :country            => card_response['address_country']
               }.merge!(extra_params),
-              ::Killbill::Stripe::StripePaymentMethod)
+              model)
       end
 
       def self.search_where_clause(t, search_key)

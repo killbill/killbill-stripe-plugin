@@ -10,7 +10,8 @@ describe Killbill::Stripe::PaymentPlugin do
     @plugin = Killbill::Stripe::PaymentPlugin.new
 
     @account_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaUserAccountApi.new
-    svcs            = {:account_user_api => @account_api}
+    @payment_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaPaymentApi.new
+    svcs            = {:account_user_api => @account_api, :payment_api => @payment_api}
     @plugin.kb_apis = Killbill::Plugin::KillbillApi.new('stripe', svcs)
 
     @call_context           = Killbill::Plugin::Model::CallContext.new
@@ -21,6 +22,16 @@ describe Killbill::Stripe::PaymentPlugin do
     @plugin.logger.level = Logger::INFO
     @plugin.conf_dir     = File.expand_path(File.dirname(__FILE__) + '../../../../')
     @plugin.start_plugin
+
+    @properties = []
+    @pm         = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, @properties)
+    @amount     = BigDecimal.new('100')
+    @currency   = 'USD'
+
+    kb_payment_id = SecureRandom.uuid
+    1.upto(6) do
+      @kb_payment = @payment_api.add_payment(kb_payment_id)
+    end
   end
 
   after(:each) do
@@ -32,15 +43,15 @@ describe Killbill::Stripe::PaymentPlugin do
 
     pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
-    pms[0].external_payment_method_id.should == pm.token
+    pms.first.external_payment_method_id.should == pm.token
 
     pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context)
     pm_details.external_payment_method_id.should == pm.token
 
     pms_found = @plugin.search_payment_methods pm.cc_last_4, 0, 10, [], @call_context
     pms_found = pms_found.iterator.to_a
-    pms_found.size.should == 1
-    pms_found.first.external_payment_method_id.should == pm_details.external_payment_method_id
+    pms_found.size.should == 2
+    pms_found[1].external_payment_method_id.should == pm_details.external_payment_method_id
 
     @plugin.delete_payment_method(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context)
 
@@ -57,65 +68,94 @@ describe Killbill::Stripe::PaymentPlugin do
     pms[1].external_payment_method_id.should == pm2.token
   end
 
+  it 'should be able to charge a Credit Card directly' do
+    properties = build_pm_properties
+
+    # We created the payment methods, hence the rows
+    max_response_id = Killbill::Stripe::StripeResponse.all.last.id
+    Killbill::Stripe::StripeTransaction.all.size.should == 0
+
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :PURCHASE
+
+    responses = Killbill::Stripe::StripeResponse.all
+    responses.size.should == max_response_id + 1
+    responses[max_response_id].api_call.should == 'purchase'
+    responses[max_response_id].message.should == 'Transaction approved'
+    transactions = Killbill::Stripe::StripeTransaction.all
+    transactions.size.should == 1
+    transactions[0].api_call.should == 'purchase'
+  end
+
   it 'should be able to charge and refund' do
-    pm            = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id)
-    amount        = BigDecimal.new("100")
-    currency      = 'USD'
-    kb_payment_id = SecureRandom.uuid
-    kb_payment_transaction_id = SecureRandom.uuid
-
-    payment_response = @plugin.purchase_payment pm.kb_account_id, kb_payment_id, kb_payment_transaction_id, pm.kb_payment_method_id, amount, currency, [], @call_context
-    payment_response.amount.should == amount
-    payment_response.status.should == :PROCESSED
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
     payment_response.transaction_type.should == :PURCHASE
 
-    # Verify our table directly
-    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :purchase, kb_payment_id)
-    responses.size.should == 1
-    response = responses.first
-    response.test.should be_true
-    response.success.should be_true
-    response.message.should == 'Transaction approved'
-
-    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, [], @call_context
-    payment_response.size.should == 1
-    payment_response[0].amount.should == amount
-    payment_response[0].status.should == :PROCESSED
-    payment_response[0].transaction_type.should == :PURCHASE
-
-    # Check we cannot refund an amount greater than the original charge
-    lambda { @plugin.refund_payment pm.kb_account_id, kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, amount + 1, currency, [], @call_context }.should raise_error RuntimeError
-
-    refund_response = @plugin.refund_payment pm.kb_account_id, kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, amount, currency, [], @call_context
-    refund_response.amount.should == amount
-    refund_response.status.should == :PROCESSED
+    # Try a full refund
+    refund_response = @plugin.refund_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[1].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    refund_response.status.should eq(:PROCESSED), refund_response.gateway_error
+    refund_response.amount.should == @amount
     refund_response.transaction_type.should == :REFUND
+  end
 
-    # Verify our table directly
-    responses = Killbill::Stripe::StripeResponse.where('api_call = ? AND kb_payment_id = ?', :refund, kb_payment_id)
-    responses.size.should == 1
-    response = responses.first
-    response.test.should be_true
-    response.success.should be_true
+  # It doesn't look like Stripe supports multiple partial captures
+  #it 'should be able to auth, capture and refund' do
+  #  payment_response = @plugin.authorize_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+  #  payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+  #  payment_response.amount.should == @amount
+  #  payment_response.transaction_type.should == :AUTHORIZE
+  #
+  #  # Try multiple partial captures
+  #  partial_capture_amount = BigDecimal.new('10')
+  #  1.upto(3) do |i|
+  #    payment_response = @plugin.capture_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[i].id, @pm.kb_payment_method_id, partial_capture_amount, @currency, @properties, @call_context)
+  #    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+  #    payment_response.amount.should == partial_capture_amount
+  #    payment_response.transaction_type.should == :CAPTURE
+  #  end
+  #
+  #  # Try a partial refund
+  #  refund_response = @plugin.refund_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[4].id, @pm.kb_payment_method_id, partial_capture_amount, @currency, @properties, @call_context)
+  #  refund_response.status.should eq(:PROCESSED), refund_response.gateway_error
+  #  refund_response.amount.should == partial_capture_amount
+  #  refund_response.transaction_type.should == :REFUND
+  #
+  #  # Try to capture again
+  #  payment_response = @plugin.capture_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[5].id, @pm.kb_payment_method_id, partial_capture_amount, @currency, @properties, @call_context)
+  #  payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+  #  payment_response.amount.should == partial_capture_amount
+  #  payment_response.transaction_type.should == :CAPTURE
+  #end
 
-    # Check we can retrieve the refund
-    payment_response = @plugin.get_payment_info pm.kb_account_id, kb_payment_id, [], @call_context
-    payment_response.size.should == 2
-    payment_response[0].amount.should == amount
-    payment_response[0].status.should == :PROCESSED
-    payment_response[0].transaction_type.should == :PURCHASE
-    # Apparently, Stripe returns positive amounts for refunds
-    payment_response[1].amount.should == amount
-    payment_response[1].status.should == :PROCESSED
-    payment_response[1].transaction_type.should == :REFUND
+  it 'should be able to auth and void' do
+    payment_response = @plugin.authorize_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :AUTHORIZE
 
-    # Make sure we can charge again the same payment method
-    second_amount        = BigDecimal.new("294.71")
-    second_kb_payment_id = SecureRandom.uuid
+    payment_response = @plugin.void_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[1].id, @pm.kb_payment_method_id, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.transaction_type.should == :VOID
+  end
 
-    payment_response = @plugin.purchase_payment pm.kb_account_id, second_kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, second_amount, currency, [], @call_context
-    payment_response.amount.should == second_amount
-    payment_response.status.should == :PROCESSED
-    payment_response.transaction_type.should == :PURCHASE
+  it 'should be able to auth, partial capture and void' do
+    payment_response = @plugin.authorize_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :AUTHORIZE
+
+    partial_capture_amount = BigDecimal.new('10')
+    payment_response       = @plugin.capture_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[1].id, @pm.kb_payment_method_id, partial_capture_amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == partial_capture_amount
+    payment_response.transaction_type.should == :CAPTURE
+
+    payment_response = @plugin.void_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[2].id, @pm.kb_payment_method_id, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.transaction_type.should == :VOID
   end
 end

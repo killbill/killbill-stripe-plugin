@@ -15,8 +15,12 @@ module Killbill #:nodoc:
       end
 
       def authorize_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
+        pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
+
         # Pass extra parameters for the gateway here
-        options = {}
+        options = {
+            :customer => pm.stripe_customer_id
+        }
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
