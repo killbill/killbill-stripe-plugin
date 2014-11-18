@@ -101,7 +101,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "params_subscription"
     t.string   "params_discount"
     t.string   "params_account_balance"
-    t.string   "params_cards"
+    t.text     "params_cards"
     t.string   "params_invoice"
     t.string   "params_description"
     t.string   "params_dispute"

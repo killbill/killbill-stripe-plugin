@@ -100,7 +100,7 @@ CREATE TABLE `stripe_responses` (
   `params_subscription` varchar(255) DEFAULT NULL,
   `params_discount` varchar(255) DEFAULT NULL,
   `params_account_balance` varchar(255) DEFAULT NULL,
-  `params_cards` varchar(255) DEFAULT NULL,
+  `params_cards` text DEFAULT NULL,
   `params_invoice` varchar(255) DEFAULT NULL,
   `params_description` varchar(255) DEFAULT NULL,
   `params_dispute` varchar(255) DEFAULT NULL,
