@@ -1,3 +1,4 @@
+require 'openssl'
 require 'action_controller'
 require 'active_record'
 require 'action_view'
