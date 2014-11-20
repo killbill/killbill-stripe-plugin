@@ -90,7 +90,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "params_card_address_line1_check"
     t.string   "params_card_address_zip_check"
     t.string   "params_captured"
-    t.string   "params_refunds"
+    t.text     "params_refunds"
     t.string   "params_balance_transaction"
     t.string   "params_failure_message"
     t.string   "params_failure_code"

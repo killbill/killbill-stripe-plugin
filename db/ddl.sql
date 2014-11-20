@@ -89,7 +89,7 @@ CREATE TABLE `stripe_responses` (
   `params_card_address_line1_check` varchar(255) DEFAULT NULL,
   `params_card_address_zip_check` varchar(255) DEFAULT NULL,
   `params_captured` varchar(255) DEFAULT NULL,
-  `params_refunds` varchar(255) DEFAULT NULL,
+  `params_refunds` text DEFAULT NULL,
   `params_balance_transaction` varchar(255) DEFAULT NULL,
   `params_failure_message` varchar(255) DEFAULT NULL,
   `params_failure_code` varchar(255) DEFAULT NULL,
