@@ -1,7 +1,14 @@
 killbill-stripe-plugin
 ======================
 
-Killbill payment plugin for Stripe.
+Plugin to use [Stripe](https://stripe.com/) as a gateway.
+
+Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.ruby%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.ruby:stripe-plugin`.
+
+Requirements
+------------
+
+The plugin needs a database. The latest version of the schema can be found here: https://raw.github.com/killbill/killbill-stripe-plugin/master/db/ddl.sql.
 
 Getting started
 ---------------
