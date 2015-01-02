@@ -123,11 +123,14 @@ module Killbill #:nodoc:
       end
 
       def set_default_payment_method(kb_account_id, kb_payment_method_id, properties, context)
-        pm                    = StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
+        pm                           = StripePaymentMethod.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
         # Update the default payment method on the customer object
-        stripe_response       = gateway.update_customer(pm.stripe_customer_id, :default_card => pm.token)
-        response, transaction = save_response_and_transaction stripe_response, :set_default_payment_method, kb_account_id, context.tenant_id
+        options                      = properties_to_hash(properties)
+        payment_processor_account_id = options[:payment_processor_account_id] || :default
+        gateway                      = lookup_gateway(payment_processor_account_id)
+        stripe_response              = gateway.update_customer(pm.stripe_customer_id, :default_card => pm.token)
+        response, transaction        = save_response_and_transaction(stripe_response, :set_default_payment_method, kb_account_id, context.tenant_id, payment_processor_account_id)
 
         if response.success
           # TODO Update our records

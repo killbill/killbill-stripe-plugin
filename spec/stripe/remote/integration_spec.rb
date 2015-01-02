@@ -66,6 +66,13 @@ describe Killbill::Stripe::PaymentPlugin do
     pms.size.should == 2
     pms[0].external_payment_method_id.should == pm1.token
     pms[1].external_payment_method_id.should == pm2.token
+
+    # Update the default payment method in Stripe (we cannot easily verify the result unfortunately)
+    @plugin.set_default_payment_method(pm.kb_account_id, pm2.kb_payment_method_id, [], @call_context)
+    response = Killbill::Stripe::StripeResponse.last
+    response.api_call.should == 'set_default_payment_method'
+    response.message.should == 'Transaction approved'
+    response.success.should be_true
   end
 
   it 'should be able to charge a Credit Card directly' do
