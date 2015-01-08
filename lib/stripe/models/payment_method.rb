@@ -25,7 +25,7 @@ module Killbill #:nodoc:
                   :token              => card_response['id'],
                   :cc_first_name      => card_response['name'],
                   :cc_last_name       => nil,
-                  :cc_type            => card_response['type'],
+                  :cc_type            => card_response['brand'],
                   :cc_exp_month       => card_response['exp_month'],
                   :cc_exp_year        => card_response['exp_year'],
                   :cc_last_4          => card_response['last4'],
