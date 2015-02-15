@@ -19,8 +19,8 @@ _yardoc
 doc/
 
 .jbundler
-Jarfile.lock
-Gemfile.lock
+
+stripe.log
 
 .DS_Store
 
