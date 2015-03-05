@@ -10,7 +10,7 @@ module Killbill #:nodoc:
           card_response     = response.responses.first.params
           customer_response = response.responses.last.params
         else
-          card_response     = response.params['cards']['data'][0]
+          card_response     = response.params['sources']['data'][0]
           customer_response = response.params
         end
 
@@ -25,7 +25,7 @@ module Killbill #:nodoc:
                   :token              => card_response['id'],
                   :cc_first_name      => card_response['name'],
                   :cc_last_name       => nil,
-                  :cc_type            => card_response['type'],
+                  :cc_type            => card_response['brand'],
                   :cc_exp_month       => card_response['exp_month'],
                   :cc_exp_year        => card_response['exp_year'],
                   :cc_last_4          => card_response['last4'],
