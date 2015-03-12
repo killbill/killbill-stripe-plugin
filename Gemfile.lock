@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    killbill-stripe (0.2.2)
+    killbill-stripe (0.2.3)
       actionpack (~> 4.1.0)
       actionview (~> 4.1.0)
       activemerchant (~> 1.44.1)
@@ -14,6 +14,7 @@ PATH
       money (~> 6.1.1)
       offsite_payments (~> 2.0.1)
       sinatra (~> 1.3.4)
+      thread_safe (~> 0.3.4)
 
 GEM
   remote: http://rubygems.org/
