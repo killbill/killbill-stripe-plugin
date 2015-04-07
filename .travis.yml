@@ -1,21 +1,35 @@
 language: ruby
 
+sudo: false
+cache: bundler
+
+script: 'bundle exec rake test:spec test:remote:spec'
+
 notifications:
   email:
     - kill-bill-commits@googlegroups.com
 
+env:
+  global:
+    - JRUBY_OPTS='-J-Xmx1024M'
+
 rvm:
-  - jruby-20mode
+  - jruby-1.7.16
+  - jruby-20mode # latest 1.7.x
   - jruby-head
 
+gemfile:
+  - Gemfile
+  - Gemfile.head
+
 jdk:
-  - openjdk6
   - openjdk7
   - oraclejdk7
+  - oraclejdk8
 
 matrix:
   allow_failures:
     - rvm: jruby-head
-  exclude:
-    - rvm: jruby-head
-      jdk: openjdk6
+    - jdk: oraclejdk8
+    - gemfile: Gemfile.head
+  fast_finish: true

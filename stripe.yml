@@ -1,6 +1,6 @@
 :stripe:
-  :api_secret_key: ''
-  :api_publishable_key: ''
+  :api_secret_key: <%= ENV['API_SECRET_KEY'] %>
+  :api_publishable_key: <%= ENV['API_PUBLISHABLE_KEY'] %>
   :log_file: '/var/tmp/stripe.log'
   :test: true
 

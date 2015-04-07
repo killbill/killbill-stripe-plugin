@@ -34,3 +34,5 @@ target
 pom.xml.asc
 
 .idea/
+
+Gemfile.head.lock
