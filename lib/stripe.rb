@@ -22,4 +22,3 @@ require 'stripe/private_api'
 require 'stripe/models/payment_method'
 require 'stripe/models/response'
 require 'stripe/models/transaction'
-

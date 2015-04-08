@@ -20,8 +20,6 @@ doc/
 
 .jbundler
 
-stripe.log
-
 .DS_Store
 
 # Build directory
@@ -29,6 +27,8 @@ killbill-stripe/
 
 # Testing database
 test.db
+
+stripe.log
 
 target
 pom.xml.asc

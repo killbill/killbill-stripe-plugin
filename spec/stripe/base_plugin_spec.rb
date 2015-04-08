@@ -18,8 +18,8 @@ describe Killbill::Stripe::PaymentPlugin do
       @plugin.logger       = Logger.new(STDOUT)
       @plugin.logger.level = Logger::INFO
       @plugin.conf_dir     = File.dirname(file)
-      @account_api         = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaUserAccountApi.new
       @plugin.kb_apis      = Killbill::Plugin::KillbillApi.new('stripe', {})
+      @plugin.root         = '/foo/killbill-stripe/0.0.1'
 
       # Start the plugin here - since the config file will be deleted
       @plugin.start_plugin
@@ -39,10 +39,12 @@ describe Killbill::Stripe::PaymentPlugin do
     verify_pms kb_account_id, 0, context
 
     # Create a pm with a kb_payment_method_id
-    Killbill::Stripe::StripePaymentMethod.create :kb_account_id        => kb_account_id,
+    Killbill::Stripe::StripePaymentMethod.create(:kb_account_id        => kb_account_id,
                                                  :kb_tenant_id         => kb_tenant_id,
                                                  :kb_payment_method_id => 'kb-1',
-                                                 :token                => 'stripe-1'
+                                                 :token                => 'stripe-1',
+                                                 :created_at           => Time.now.utc,
+                                                 :updated_at           => Time.now.utc)
     verify_pms kb_account_id, 1, context
 
     # Add some in KillBill and reset
@@ -55,9 +57,11 @@ describe Killbill::Stripe::PaymentPlugin do
     verify_pms kb_account_id, 4, context
 
     # Add a payment method without a kb_payment_method_id
-    Killbill::Stripe::StripePaymentMethod.create :kb_account_id => kb_account_id,
+    Killbill::Stripe::StripePaymentMethod.create(:kb_account_id => kb_account_id,
                                                  :kb_tenant_id  => kb_tenant_id,
-                                                 :token         => 'stripe-5'
+                                                 :token         => 'stripe-5',
+                                                 :created_at    => Time.now.utc,
+                                                 :updated_at    => Time.now.utc)
     @plugin.get_payment_methods(kb_account_id, false, nil, context).size.should == 5
 
     # Verify we can match it

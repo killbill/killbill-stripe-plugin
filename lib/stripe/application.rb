@@ -18,11 +18,7 @@ end
 
 helpers do
   def plugin(session = {})
-    ::Killbill::Stripe::PrivatePaymentPlugin.new(:stripe,
-                                                 ::Killbill::Stripe::StripePaymentMethod,
-                                                 ::Killbill::Stripe::StripeTransaction,
-                                                 ::Killbill::Stripe::StripeResponse,
-                                                 session)
+    ::Killbill::Stripe::PrivatePaymentPlugin.new(session)
   end
 end
 

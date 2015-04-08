@@ -12,16 +12,19 @@ describe Killbill::Stripe::PaymentPlugin do
     @account_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaUserAccountApi.new
     @payment_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaPaymentApi.new
     @tenant_api     = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaTenantUserApi.new({})
+
     svcs            = {:account_user_api => @account_api, :payment_api => @payment_api, :tenant_user_api => @tenant_api}
     @plugin.kb_apis = Killbill::Plugin::KillbillApi.new('stripe', svcs)
 
-    @call_context           = Killbill::Plugin::Model::CallContext.new
+    @call_context           = ::Killbill::Plugin::Model::CallContext.new
     @call_context.tenant_id = '00000011-0022-0033-0044-000000000055'
     @call_context           = @call_context.to_ruby(@call_context)
 
     @plugin.logger       = Logger.new(STDOUT)
     @plugin.logger.level = Logger::INFO
     @plugin.conf_dir     = File.expand_path(File.dirname(__FILE__) + '../../../../')
+    @plugin.root         = '/foo/killbill-stripe/0.0.1'
+
     @plugin.start_plugin
 
     @properties = []
