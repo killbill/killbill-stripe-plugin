@@ -27,12 +27,16 @@ get '/plugins/killbill-stripe' do
   kb_account_id = request.GET['kb_account_id']
   required_parameter! :kb_account_id, kb_account_id
 
+  kb_tenant_id = request.GET['kb_tenant_id']
+  kb_tenant = request.env['killbill_tenant']
+  kb_tenant_id ||= kb_tenant.id.to_s unless kb_tenant.nil?
+
   # URL to Stripe.js
-  stripejs_url = config[:stripe][:stripejs_url] || 'https://js.stripe.com/v2/'
+  stripejs_url = config(kb_tenant_id)[:stripe][:stripejs_url] || 'https://js.stripe.com/v2/'
   required_parameter! :stripejs_url, stripejs_url, 'is not configured'
 
   # Public API key
-  publishable_key = config[:stripe][:api_publishable_key]
+  publishable_key = config(kb_tenant_id)[:stripe][:api_publishable_key]
   required_parameter! :publishable_key, publishable_key, 'is not configured'
 
   # Redirect
@@ -43,6 +47,7 @@ get '/plugins/killbill-stripe' do
       :stripejs_url    => stripejs_url,
       :publishable_key => publishable_key,
       :kb_account_id   => kb_account_id,
+      :kb_tenant_id    => kb_tenant_id,
       :success_page    => success_page
   }
   erb :stripejs, :locals => locals
