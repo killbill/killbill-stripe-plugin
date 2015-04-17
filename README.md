@@ -15,7 +15,7 @@ Kill Bill compatibility
 Requirements
 ------------
 
-The plugin needs a database. The latest version of the schema can be found [here](https://raw.github.com/killbill/killbill-stripe-plugin/master/db/ddl.sql).
+The plugin needs a database. The latest version of the schema can be found [here](https://github.com/killbill/killbill-stripe-plugin/blob/master/db/ddl.sql).
 
 Configuration
 -------------
