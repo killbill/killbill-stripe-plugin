@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
 
   s.author   = 'Kill Bill core team'
   s.email    = 'killbilling-users@googlegroups.com'
-  s.homepage = 'http://kill-bill.org'
+  s.homepage = 'http://killbill.io'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
@@ -35,7 +35,7 @@ Gem::Specification.new do |s|
   end
   s.add_dependency 'actionpack', '~> 4.1.0'
   s.add_dependency 'actionview', '~> 4.1.0'
-  s.add_dependency 'activemerchant', '~> 1.47.0'
+  s.add_dependency 'activemerchant', '~> 1.48.0'
   s.add_dependency 'offsite_payments', '~> 2.1.0'
   s.add_dependency 'monetize', '~> 1.1.0'
   s.add_dependency 'money', '~> 6.5.1'
