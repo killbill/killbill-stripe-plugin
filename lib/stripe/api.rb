@@ -100,6 +100,7 @@ module Killbill #:nodoc:
 
         # Pass extra parameters for the gateway here
         options = {
+            :email => @kb_apis.account_user_api.get_account_by_id(kb_account_id, @kb_apis.create_context(context.tenant_id)).email,
             # This will either update the current customer if present, or create a new one
             :customer => stripe_customer_id,
             # Magic field, see also private_api.rb (works only when creating an account)
