@@ -38,8 +38,12 @@
           $form.append($('<input type="hidden" name="stripeType" />').val(response.type));
           $form.append($('<input type="hidden" name="stripeObject" />').val(response.object));
           $form.append($('<input type="hidden" name="stripeUsed" />').val(response.used));
-          // and re-submit
-          $form.get(0).submit();
+          <% if no_redirect %>
+            console.log(response);
+          <% else %>
+           // and re-submit
+            $form.get(0).submit();
+          <% end %>
         }
       };
 

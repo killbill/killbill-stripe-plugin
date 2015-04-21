@@ -39,16 +39,15 @@ get '/plugins/killbill-stripe' do
   publishable_key = config(kb_tenant_id)[:stripe][:api_publishable_key]
   required_parameter! :publishable_key, publishable_key, 'is not configured'
 
-  # Redirect
-  success_page = params[:successPage] || '/plugins/killbill-stripe'
-  required_parameter! :success_page, success_page, 'is not specified'
+  # Skip redirect? Useful for testing the flow with Kill Bill
+  no_redirect = request.GET['no_redirect'] == '1'
 
   locals = {
       :stripejs_url    => stripejs_url,
       :publishable_key => publishable_key,
       :kb_account_id   => kb_account_id,
       :kb_tenant_id    => kb_tenant_id,
-      :success_page    => success_page
+      :no_redirect     => no_redirect
   }
   erb :stripejs, :locals => locals
 end
