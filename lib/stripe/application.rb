@@ -54,13 +54,8 @@ end
 
 # This is mainly for testing. Your application should redirect from the Stripe.js checkout above
 # to a custom endpoint where you call the Kill Bill add payment method JAX-RS API.
-# If you really want to use this endpoint, you'll have to call the Kill Bill refresh payment methods API
-# to get a Kill Bill payment method id assigned.
-post '/plugins/killbill-stripe' do
-  pm = plugin.add_payment_method params
-
-  status 201
-  redirect '/plugins/killbill-stripe/1.0/pms/' + pm.id.to_s
+post '/plugins/killbill-stripe', :provides => 'json' do
+  params.to_json
 end
 
 # curl -v http://127.0.0.1:9292/plugins/killbill-stripe/1.0/pms/1

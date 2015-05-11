@@ -195,6 +195,13 @@ module Killbill #:nodoc:
           # gw_notification.entity =
         end
       end
+
+      private
+
+      def get_payment_source(kb_payment_method_id, properties, options, context)
+        return nil if options[:customer_id]
+        super(kb_payment_method_id, properties, options, context)
+      end
     end
   end
 end
