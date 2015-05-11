@@ -7,25 +7,14 @@ describe Killbill::Stripe::PaymentPlugin do
   include ::Killbill::Plugin::ActiveMerchant::RSpec
 
   before(:each) do
-    @plugin = Killbill::Stripe::PaymentPlugin.new
+    ::Killbill::Stripe::StripePaymentMethod.delete_all
+    ::Killbill::Stripe::StripeResponse.delete_all
+    ::Killbill::Stripe::StripeTransaction.delete_all
 
-    @account_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaUserAccountApi.new
-    @payment_api    = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaPaymentApi.new
-    @tenant_api     = ::Killbill::Plugin::ActiveMerchant::RSpec::FakeJavaTenantUserApi.new({})
-
-    svcs            = {:account_user_api => @account_api, :payment_api => @payment_api, :tenant_user_api => @tenant_api}
-    @plugin.kb_apis = Killbill::Plugin::KillbillApi.new('stripe', svcs)
-
-    @call_context           = ::Killbill::Plugin::Model::CallContext.new
-    @call_context.tenant_id = '00000011-0022-0033-0044-000000000055'
-    @call_context           = @call_context.to_ruby(@call_context)
-
-    @plugin.logger       = Logger.new(STDOUT)
-    @plugin.logger.level = Logger::INFO
-    @plugin.conf_dir     = File.expand_path(File.dirname(__FILE__) + '../../../../')
-    @plugin.root         = '/foo/killbill-stripe/0.0.1'
-
+    @plugin = build_plugin(::Killbill::Stripe::PaymentPlugin, 'stripe')
     @plugin.start_plugin
+
+    @call_context = build_call_context
 
     @properties = []
     @pm         = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, @properties)
@@ -34,7 +23,7 @@ describe Killbill::Stripe::PaymentPlugin do
 
     kb_payment_id = SecureRandom.uuid
     1.upto(6) do
-      @kb_payment = @payment_api.add_payment(kb_payment_id)
+      @kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(kb_payment_id)
     end
   end
 
@@ -83,7 +72,7 @@ describe Killbill::Stripe::PaymentPlugin do
     properties = build_pm_properties
 
     # We created the payment methods, hence the rows
-    max_response_id = Killbill::Stripe::StripeResponse.all.last.id
+    nb_responses = Killbill::Stripe::StripeResponse.count
     Killbill::Stripe::StripeTransaction.all.size.should == 0
 
     payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
@@ -92,9 +81,9 @@ describe Killbill::Stripe::PaymentPlugin do
     payment_response.transaction_type.should == :PURCHASE
 
     responses = Killbill::Stripe::StripeResponse.all
-    responses.size.should == max_response_id + 1
-    responses[max_response_id].api_call.should == 'purchase'
-    responses[max_response_id].message.should == 'Transaction approved'
+    responses.size.should == nb_responses + 1
+    responses[nb_responses].api_call.should == 'purchase'
+    responses[nb_responses].message.should == 'Transaction approved'
     transactions = Killbill::Stripe::StripeTransaction.all
     transactions.size.should == 1
     transactions[0].api_call.should == 'purchase'

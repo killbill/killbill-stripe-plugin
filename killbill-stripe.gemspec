@@ -17,19 +17,19 @@ Gem::Specification.new do |s|
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.bindir        = 'bin'
-  s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
+  s.executables   = `git ls-files -- bin/*`.split("\n").map { |f| File.basename(f) }
   s.require_paths = ['lib']
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 3.2.4'
+  s.add_dependency 'killbill', '~> 4.0.0'
 
   s.add_dependency 'sinatra', '~> 1.3.4'
   s.add_dependency 'thread_safe', '~> 0.3.4'
   s.add_dependency 'activerecord', '~> 4.1.0'
   if defined?(JRUBY_VERSION)
     s.add_dependency 'activerecord-bogacs', '~> 0.3'
-    s.add_dependency 'activerecord-jdbc-adapter', '~> 1.3.12'
+    s.add_dependency 'activerecord-jdbc-adapter', '~> 1.3'
     # Required to avoid errors like java.lang.NoClassDefFoundError: org/bouncycastle/asn1/DERBoolean
     s.add_dependency 'jruby-openssl', '~> 0.9.6'
   end
@@ -40,7 +40,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'monetize', '~> 1.1.0'
   s.add_dependency 'money', '~> 6.5.1'
 
-  s.add_development_dependency 'jbundler', '~> 0.4.1'
+  s.add_development_dependency 'jbundler', '~> 0.4.3'
   s.add_development_dependency 'rake', '>= 10.0.0'
   s.add_development_dependency 'rspec', '~> 2.12.0'
   if defined?(JRUBY_VERSION)

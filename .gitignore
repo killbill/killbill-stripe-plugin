@@ -22,9 +22,6 @@ doc/
 
 .DS_Store
 
-# Build directory
-killbill-stripe/
-
 # Testing database
 test.db
 

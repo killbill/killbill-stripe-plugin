@@ -14,7 +14,7 @@ env:
     - JRUBY_OPTS='-J-Xmx1024M'
 
 rvm:
-  - jruby-1.7.19
+  - jruby-1.7.20
   - jruby-20mode # latest 1.7.x
   - jruby-head
 
