@@ -53,7 +53,7 @@ module Killbill #:nodoc:
         stripe_customer_ids = Set.new
         pms.each { |pm| stripe_customer_ids << pm.stripe_customer_id }
         raise "No Stripe customer id found for account #{kb_account_id}" if stripe_customer_ids.empty?
-        raise "Kill Bill account #{kb_account_id} mapping to multiple Stripe customers: #{stripe_customer_ids}" if stripe_customer_ids.size > 1
+        raise "Kill Bill account #{kb_account_id} mapping to multiple Stripe customers: #{stripe_customer_ids.to_a}" if stripe_customer_ids.size > 1
         stripe_customer_ids.first
       end
     end
