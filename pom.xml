@@ -25,7 +25,7 @@
     <groupId>org.kill-bill.billing.plugin.ruby</groupId>
     <artifactId>stripe-plugin</artifactId>
     <packaging>pom</packaging>
-    <version>0.2.3</version>
+    <version>1.0.0</version>
     <name>stripe-plugin</name>
     <url>http://github.com/killbill/killbill-stripe-plugin</url>
     <description>Plugin for accessing Stripe as a payment gateway</description>
