@@ -1,2 +1,19 @@
-0.0.1
+1.0.0
+    Initial release for Kill Bill 0.14.x
+
+0.2.3
+    Add thread_safe dependency
+
+0.2.2
+    Initial release for Kill Bill 0.13.x
+    Stripe API version 2015-02-18 compatibility
+    https://github.com/killbill/killbill-plugin-framework-ruby/issues/13
+
+0.2.1
+    Add missing require 'openssl'
+
+0.2.0
+    Initial release for Kill Bill 0.12.x
+
+0.1.0
     Initial release
