@@ -120,3 +120,12 @@ CREATE TABLE `stripe_responses` (
   `kb_tenant_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
+
+CREATE TABLE `stripe_application_fees` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `application_fee` DECIMAL(3,2) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `active` tinyint(1) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;

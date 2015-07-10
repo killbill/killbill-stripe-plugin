@@ -1,12 +1,10 @@
-:stripe:
-  :api_secret_key: <%= ENV['API_SECRET_KEY'] %>
-  :api_publishable_key: <%= ENV['API_PUBLISHABLE_KEY'] %>
-  :test: true
+#:stripe:
+#  :stripe_destination: <%= ENV['API_SECRET_KEY'] %>
 
-:database:
+#:database:
 # SQLite (development)
-  :adapter: sqlite3
-  :database: test.db
+#  :adapter: sqlite3
+#  :database: test.db
 # For MySQL
 #  :adapter: mysql
 #  :username: 'killbill'
