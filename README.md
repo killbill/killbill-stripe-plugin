@@ -1,7 +1,7 @@
 killbill-stripe-plugin
 ======================
 
-Plugin to use [Stripe Connect](https://stripe.com/docs/connect) as a gateway.
+Plugin to use [Stripe Connect](https://stripe.com/docs/connect) as a gateway for [KillBill.io](http://www.killbill.io).
 
 
 Kill Bill compatibility
