@@ -1,9 +1,8 @@
 killbill-stripe-plugin
 ======================
 
-Plugin to use [Stripe Connect](https://stripe.com/) as a gateway.
+Plugin to use [Stripe Connect](https://stripe.com/docs/connect) as a gateway.
 
-Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.ruby%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.ruby:stripe-plugin`.
 
 Kill Bill compatibility
 -----------------------
@@ -35,12 +34,24 @@ curl -v \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
-You'll also need to add a row to the table `stripe_application_fees`. Currently it uses a percent. Right now, the logic is just pulling the first active record. Please modify the query and tables to pull the correct percent base on your logic. For example, add a `tenant_id` or `account_id` to the `stripe_application_fees` table so that you can set a percent based on a tentant or account. You could also change the code to pull a dollar amount instead of a pecent. My requirements have not been solidified yet, so this implementation is a placeholder to be built upon at a later date.
+You'll also need to add a row to the `stripe_application_fees` table and add a percent (such as .3 for 30%) to the `application_fee` field. Right now, the logic is just pulling the first active record and then using the `application_fee` field as a percent and calculating the application fee as a percentage on the purchase amount. My requirements have not been solidified yet, so this implementation is a placeholder to be built upon at a later date. You could easily add a `tenant_id` or `account_id` to the `stripe_application_fees` table so that you can set a percent based on a tenant or an account. You could also change the code to pull a dollar amount instead of calculating a percent of the purchase amount.
 
 To get your credentials:
 
 1. Go to [stripe.com](http://stripe.com/) and create an account. This account will be used as a sandbox environment for testing.
 2. In your Stripe account, click on **Your Account** (top right), then click on **Account Settings** and then on the **API Keys** tab. Write down your keys.
+
+To get a destination account:
+1. Call the following...
+```
+curl https://api.stripe.com/v1/accounts \
+-u sk_test_pzDxPUJ3QTIjGWdlPfz9UkfF: \
+-d country=US \
+-d managed=true
+```
+Or see [additional ways](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) to setup a destination account. 
+
+2. In the response, you'll get back an `id`. Use that `id` as your destination account.    
 
 To go to production, create a `stripe.yml` configuration file under `/var/tmp/bundles/plugins/ruby/killbill-stripe/x.y.z/` containing the following:
 
