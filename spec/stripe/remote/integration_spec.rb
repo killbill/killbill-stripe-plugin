@@ -7,12 +7,12 @@ describe Killbill::Stripe::PaymentPlugin do
   include ::Killbill::Plugin::ActiveMerchant::RSpec
 
   before(:each) do
+    @plugin = build_plugin(::Killbill::Stripe::PaymentPlugin, 'stripe')
+    @plugin.start_plugin
+
     ::Killbill::Stripe::StripePaymentMethod.delete_all
     ::Killbill::Stripe::StripeResponse.delete_all
     ::Killbill::Stripe::StripeTransaction.delete_all
-
-    @plugin = build_plugin(::Killbill::Stripe::PaymentPlugin, 'stripe')
-    @plugin.start_plugin
 
     @call_context = build_call_context
 
