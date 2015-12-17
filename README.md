@@ -12,6 +12,7 @@ Kill Bill compatibility
 | -------------: | ----------------: | --------------------------------------------------------: |
 | 1.0.y          | 0.14.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 2.0.y          | 0.15.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 3.0.y          | 0.16.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 
 Requirements
 ------------

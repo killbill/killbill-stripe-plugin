@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 5.2.0'
+  s.add_dependency 'killbill', '~> 7.0'
 
   s.add_dependency 'sinatra', '~> 1.3.4'
   s.add_dependency 'thread_safe', '~> 0.3.4'
@@ -39,7 +39,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'monetize', '~> 1.1.0'
   s.add_dependency 'money', '~> 6.5.1'
 
-  s.add_development_dependency 'jbundler', '~> 0.4.3'
+  s.add_development_dependency 'jbundler', '~> 0.9.2'
   s.add_development_dependency 'rake', '>= 10.0.0'
   s.add_development_dependency 'rspec', '~> 2.12.0'
   if defined?(JRUBY_VERSION)

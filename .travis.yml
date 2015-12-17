@@ -3,6 +3,9 @@ language: ruby
 sudo: false
 cache: bundler
 
+before_script:
+  - bundle exec jbundle install
+
 script: 'bundle exec rake test:spec test:remote:spec'
 
 notifications:
