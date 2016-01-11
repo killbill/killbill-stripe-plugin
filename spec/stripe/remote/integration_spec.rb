@@ -32,11 +32,27 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should be able to create and retrieve payment methods' do
-    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id)
+    # Override default payment method params to make sure we store the data returned by Stripe (see https://github.com/killbill/killbill-stripe-plugin/issues/8)
+    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], { :cc_type => '', :cc_last_4 => '' })
 
     pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
     pms.first.external_payment_method_id.should == pm.token
+
+    pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pms.first.payment_method_id, [], @call_context)
+    pm_props = properties_to_hash(pm_details.properties)
+    pm_props[:ccFirstName].should == 'John'
+    pm_props[:ccLastName].should == 'Doe'
+    pm_props[:ccType].should == 'Visa'
+    pm_props[:ccExpirationMonth].should == '12'
+    pm_props[:ccExpirationYear].should == '2017'
+    pm_props[:ccLast4].should == '4242'
+    pm_props[:address1].should == '5, oakriu road'
+    pm_props[:address2].should == 'apt. 298'
+    pm_props[:city].should == 'Gdio Foia'
+    pm_props[:state].should == 'FL'
+    pm_props[:zip].should == '49302'
+    pm_props[:country].should == 'US'
 
     pm_details = @plugin.get_payment_method_detail(pm.kb_account_id, pm.kb_payment_method_id, [], @call_context)
     pm_details.external_payment_method_id.should == pm.token

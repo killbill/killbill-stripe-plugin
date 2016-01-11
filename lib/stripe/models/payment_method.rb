@@ -38,7 +38,7 @@ module Killbill #:nodoc:
                   :state              => card_response['address_state'],
                   :zip                => card_response['address_zip'],
                   :country            => card_response['address_country']
-              }.merge!(extra_params),
+              }.merge!(extra_params.compact), # Don't override with nil values
               model)
       end
 
