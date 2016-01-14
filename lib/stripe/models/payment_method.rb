@@ -5,7 +5,7 @@ module Killbill #:nodoc:
       self.table_name = 'stripe_payment_methods'
 
       def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {}, model = ::Killbill::Stripe::StripePaymentMethod)
-        stripe_customer_id = self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
+        stripe_customer_id = options[:customer] || self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
         if !stripe_customer_id.blank? && response.respond_to?(:responses)
           card_response     = response.responses.first.params
           customer_response = response.responses.last.params
@@ -14,7 +14,7 @@ module Killbill #:nodoc:
           customer_response = response.params
         else
           card_response = {}
-          customer_response = {}
+          customer_response = { 'id' => stripe_customer_id }
         end
 
         super(kb_account_id,

@@ -96,7 +96,7 @@ module Killbill #:nodoc:
 
       def add_payment_method(kb_account_id, kb_payment_method_id, payment_method_props, set_default, properties, context)
         # Do we have a customer for that account already?
-        stripe_customer_id = StripePaymentMethod.stripe_customer_id_from_kb_account_id(kb_account_id, context.tenant_id)
+        stripe_customer_id = find_value_from_properties(payment_method_props.properties, :customer) || StripePaymentMethod.stripe_customer_id_from_kb_account_id(kb_account_id, context.tenant_id)
 
         # Pass extra parameters for the gateway here
         options = {
