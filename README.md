@@ -80,3 +80,33 @@ An example implementation is exposed at:
 ```
 http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=2a55045a-ce1d-4344-942d-b825536328f9&kb_tenant_id=a86d9fd1-718d-4178-a9eb-46c61aa2548f
 ```
+
+Plugin properties
+-----------------
+
+| Key                          | Description                                                       |
+| ---------------------------: | ----------------------------------------------------------------- |
+| skip_gw                      | If true, skip the call to Stripe                                  |
+| payment_processor_account_id | Config entry name of the merchant account to use                  |
+| external_key_as_order_id     | If true, set the payment external key as the Stripe order id      |
+| customer                     | Stripe customer id                                                |
+| token                        | Stripe token                                                      |
+| cc_first_name                | Credit card holder first name                                     |
+| cc_last_name                 | Credit card holder last name                                      |
+| cc_type                      | Credit card brand                                                 |
+| cc_expiration_month          | Credit card expiration month                                      |
+| cc_expiration_year           | Credit card expiration year                                       |
+| cc_verification_value        | CVC/CVV/CVN                                                       |
+| email                        | Purchaser email                                                   |
+| address1                     | Billing address first line                                        |
+| address2                     | Billing address second line                                       |
+| city                         | Billing address city                                              |
+| zip                          | Billing address zip code                                          |
+| state                        | Billing address state                                             |
+| country                      | Billing address country                                           |
+| eci                          | Network tokenization attribute                                    |
+| payment_cryptogram           | Network tokenization attribute                                    |
+| transaction_id               | Network tokenization attribute                                    |
+| payment_instrument_name      | ApplePay tokenization attribute                                   |
+| payment_network              | ApplePay tokenization attribute                                   |
+| transaction_identifier       | ApplePay tokenization attribute                                   |
