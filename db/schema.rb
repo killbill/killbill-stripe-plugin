@@ -51,6 +51,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
   end
 
   add_index(:stripe_transactions, :kb_payment_id)
+  add_index(:stripe_transactions, :stripe_response_id)
 
   create_table "stripe_responses", :force => true do |t|
     t.string   "api_call",          :null => false
@@ -120,4 +121,6 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "kb_account_id"
     t.string   "kb_tenant_id"
   end
+
+  add_index(:stripe_responses, [:kb_payment_id, :kb_tenant_id])
 end

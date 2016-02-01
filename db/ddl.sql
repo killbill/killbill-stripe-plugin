@@ -49,6 +49,7 @@ CREATE TABLE stripe_transactions (
   PRIMARY KEY (id)
 ) /*! ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin */;
 CREATE INDEX index_stripe_transactions_kb_payment_id ON stripe_transactions(kb_payment_id);
+CREATE INDEX index_stripe_transactions_stripe_response_id ON stripe_transactions(stripe_response_id);
 
 CREATE TABLE stripe_responses (
   id serial unique,
@@ -120,3 +121,4 @@ CREATE TABLE stripe_responses (
   kb_tenant_id varchar(255) DEFAULT NULL,
   PRIMARY KEY (id)
 ) /*! ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin */;
+CREATE INDEX index_stripe_responses_kb_payment_id_kb_tenant_id ON stripe_responses(kb_payment_id, kb_tenant_id);
