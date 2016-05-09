@@ -8,9 +8,9 @@
 - org.kill-bill.billing.plugin:killbill-plugin-api-notification:jar:0.18
 - commons-beanutils:commons-beanutils:jar:1.8.3
 - org.kill-bill.billing:killbill-internal-api:jar:0.15.10
+- com.google.inject:guice:jar:3.0
 - org.kill-bill.commons:killbill-xmlloader:jar:0.11
 - org.kill-bill.billing.plugin:killbill-plugin-api-entitlement:jar:0.18
-- com.google.inject:guice:jar:3.0
 - org.osgi:org.osgi.core:jar:5.0.0
 - org.slf4j:slf4j-api:jar:1.7.12
 - com.samskivert:jmustache:jar:1.5
@@ -50,14 +50,14 @@
 - org.kill-bill.commons:killbill-locker:jar:0.11
 - org.osgi:org.osgi.compendium:jar:5.0.0
 - org.kill-bill.commons:killbill-queue:jar:0.11
-- org.kill-bill.commons:killbill-concurrent:jar:0.11
 - javax.servlet:javax.servlet-api:jar:3.1.0
+- org.kill-bill.commons:killbill-concurrent:jar:0.11
 - org.apache.shiro:shiro-ehcache:jar:1.2.3
 - javax.inject:javax.inject:jar:1
 - com.fasterxml.jackson.datatype:jackson-datatype-joda:jar:2.4.3
 - com.google.inject.extensions:guice-multibindings:jar:3.0
 - net.sf.ehcache:ehcache:jar:2.9.1
-- org.kill-bill.billing.plugin:killbill-plugin-api-invoice:jar:0.18
 - org.kill-bill.billing:killbill-api:jar:0.32
+- org.kill-bill.billing.plugin:killbill-plugin-api-invoice:jar:0.18
 - org.apache.shiro:shiro-guice:jar:1.2.3
 - com.google.code.findbugs:annotations:jar:3.0.0
