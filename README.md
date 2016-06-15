@@ -8,11 +8,12 @@ Release builds are available on [Maven Central](http://search.maven.org/#search%
 Kill Bill compatibility
 -----------------------
 
-| Plugin version | Kill Bill version | Stripe version                                            |
-| -------------: | ----------------: | --------------------------------------------------------: |
-| 1.0.y          | 0.14.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 2.0.y          | 0.15.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 3.0.y          | 0.16.z            | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| Plugin version | Kill Bill version  | Stripe version                                            |
+| -------------: | -----------------: | --------------------------------------------------------: |
+| 1.0.y          | 0.14.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 2.0.y          | 0.15.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 3.0.y          | 0.16.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 4.0.y          | 0.18.z (and 0.17.y)| [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 
 Requirements
 ------------
