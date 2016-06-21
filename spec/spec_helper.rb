@@ -12,11 +12,15 @@ RSpec.configure do |config|
   config.formatter = 'documentation'
 end
 
-require 'active_record'
-ActiveRecord::Base.establish_connection(
-    :adapter => 'sqlite3',
-    :database => 'test.db'
-)
+require defined?(JRUBY_VERSION) ? 'arjdbc' : 'active_record'
+db_config = {
+    :adapter => ENV['AR_ADAPTER'] || 'sqlite3',
+    :database => ENV['AR_DATABASE'] || 'test.db',
+}
+db_config[:username] = ENV['AR_USERNAME'] if ENV['AR_USERNAME']
+db_config[:password] = ENV['AR_PASSWORD'] if ENV['AR_PASSWORD']
+ActiveRecord::Base.establish_connection(db_config)
+
 # For debugging
 #ActiveRecord::Base.logger = Logger.new(STDOUT)
 # Create the schema
