@@ -122,3 +122,12 @@ CREATE TABLE stripe_responses (
   PRIMARY KEY (id)
 ) /*! ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin */;
 CREATE INDEX index_stripe_responses_kb_payment_id_kb_tenant_id ON stripe_responses(kb_payment_id, kb_tenant_id);
+
+CREATE TABLE stripe_application_fees (
+  id serial unique,
+  application_fee DECIMAL(3,2) NOT NULL,
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  active boolean DEFAULT NULL,
+  PRIMARY KEY (id)
+) /*! ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin */;

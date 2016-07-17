@@ -123,4 +123,11 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
   end
 
   add_index(:stripe_responses, [:kb_payment_id, :kb_tenant_id])
+
+  create_table "stripe_application_fees", :force => true do |t|
+    t.decimal  "application_fee"
+    t.boolean  "active",                   :null => false, :default => true
+    t.datetime "created_at",               :null => false
+    t.datetime "updated_at",               :null => false
+  end
 end

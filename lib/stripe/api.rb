@@ -1,17 +1,23 @@
+include Killbill::Plugin::ActiveMerchant
 module Killbill #:nodoc:
   module Stripe #:nodoc:
     class PaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PaymentPlugin
+
 
       def initialize
         gateway_builder = Proc.new do |config|
           ::ActiveMerchant::Billing::StripeGateway.new :login => config[:api_secret_key]
         end
 
+
         super(gateway_builder,
               :stripe,
               ::Killbill::Stripe::StripePaymentMethod,
               ::Killbill::Stripe::StripeTransaction,
               ::Killbill::Stripe::StripeResponse)
+
+
+
       end
 
       def on_event(event)
@@ -25,9 +31,10 @@ module Killbill #:nodoc:
       def authorize_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        # Pass extra parameters for the gateway here
         options = {
-            :customer => pm.stripe_customer_id
+            :customer => pm.stripe_customer_id,
+            :destination => get_destination(context.tenant_id),
+            :application_fee => get_application_fee(amount)
         }
 
         properties = merge_properties(properties, options)
@@ -47,7 +54,9 @@ module Killbill #:nodoc:
 
         # Pass extra parameters for the gateway here
         options = {
-            :customer => pm.stripe_customer_id
+            :customer => pm.stripe_customer_id,
+            :destination => get_destination(context.tenant_id),
+            :application_fee => get_application_fee(amount)
         }
 
         properties = merge_properties(properties, options)
@@ -72,7 +81,10 @@ module Killbill #:nodoc:
 
       def refund_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         # Pass extra parameters for the gateway here
-        options = {}
+        options = {
+            :reverse_transfer => true,
+            :refund_application_fee => true
+        }
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -198,10 +210,23 @@ module Killbill #:nodoc:
 
       private
 
+
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
         super(kb_payment_method_id, properties, options, context)
       end
+
+      def get_destination(tenant_id)
+        return Killbill::Plugin::ActiveMerchant.config(tenant_id)[:stripe][:stripe_destination]
+      end
+
+      def get_application_fee(amount)
+        fees_percent = StripeApplicationFee.first.application_fee
+
+        return (fees_percent * amount*100).to_i
+      end
+
+
     end
   end
 end
