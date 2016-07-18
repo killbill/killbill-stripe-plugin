@@ -188,18 +188,25 @@ module Killbill #:nodoc:
         super(kb_account_id, descriptor_fields, properties, context)
       end
 
-      def process_notification(notification, properties, context)
-        # Pass extra parameters for the gateway here
-        options = {}
-        properties = merge_properties(properties, options)
+      def process_notification(notification_json, properties, context)
+        notification = JSON.parse(notification_json)
+        gw_response = ::ActiveMerchant::Billing::Response.new(true,
+                                                              nil,
+                                                              notification,
+                                                              :test => !notification['livemode'],
+                                                              :authorization => notification['request'],
+                                                              :avs_result => nil,
+                                                              :cvv_result => nil,
+                                                              :emv_authorization => nil,
+                                                              :error_code => nil)
+        save_response_and_transaction(gw_response, "webhook.#{notification['type']}".to_sym, nil, context.tenant_id, nil)
 
-        super(notification, properties, context) do |gw_notification, service|
-          # Retrieve the payment
-          # gw_notification.kb_payment_id =
-          #
-          # Set the response body
-          # gw_notification.entity =
-        end
+        gw_notification = ::Killbill::Plugin::Model::GatewayNotification.new
+        gw_notification.kb_payment_id = nil
+        gw_notification.status = 200
+        gw_notification.headers = {}
+        gw_notification.properties = []
+        gw_notification
       end
 
       private

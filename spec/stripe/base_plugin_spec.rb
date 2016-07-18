@@ -4,6 +4,18 @@ describe Killbill::Stripe::PaymentPlugin do
 
   include ::Killbill::Plugin::ActiveMerchant::RSpec
 
+  let(:kb_account_id) do
+    SecureRandom.uuid
+  end
+
+  let(:kb_tenant_id) do
+    SecureRandom.uuid
+  end
+
+  let(:context) do
+    build_call_context(kb_tenant_id)
+  end
+
   before(:each) do
     Dir.mktmpdir do |dir|
       file = File.new(File.join(dir, 'stripe.yml'), 'w+')
@@ -29,10 +41,6 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should reset payment methods' do
-    kb_account_id = '129384'
-    kb_tenant_id  = '092384'
-    context       = @plugin.kb_apis.create_context(kb_tenant_id)
-
     @plugin.get_payment_methods(kb_account_id, false, [], context).size.should == 0
     verify_pms kb_account_id, 0, context
 
@@ -68,6 +76,46 @@ describe Killbill::Stripe::PaymentPlugin do
     verify_pms kb_account_id, 5, context
 
     @plugin.stop_plugin
+  end
+
+  it 'processes notifications' do
+    notification =<<EOF
+{
+  "id": "evt_1234",
+  "user_id": "acct_12QkqYGSOD4VcegJ",
+  "type": "account.updated",
+  "data": {
+    "object": {
+      "legal_entity": {
+        "verification": {
+          "status": "unverified"
+        }
+      },
+      "verification": {
+        "fields_needed": ["legal_entity.personal_id_number"],
+        "due_by": null,
+        "contacted": false
+      }
+    },
+    "previous_attributes": {
+      "legal_entity": {
+        "verification": {
+          "status": "pending"
+        }
+      },
+      "verification": {
+        "fields_needed": []
+      }
+    }
+  }
+}
+EOF
+    gw_notification = @plugin.process_notification(notification, {}, context)
+    gw_notification.status.should == 200
+
+    response = ::Killbill::Stripe::StripeResponse.last
+    response.params_id.should == 'evt_1234'
+    response.api_call.should == 'webhook.account.updated'
   end
 
   private
