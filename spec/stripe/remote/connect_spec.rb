@@ -97,6 +97,17 @@ Collected fees:       https://dashboard.stripe.com/test/applications/fees"
 
     check_balance(nil, init_balance + 141)
     check_balance(kb_account_id_for_contractor, 800)
+
+    props = []
+    props << build_property(:reverse_transfer, 'true')
+    props << build_property(:refund_application_fee, 'true')
+    refund_response = plugin.refund_payment(kb_account_id_for_customer, payment_response.kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, 10, :USD, props, call_context)
+    refund_response.status.should eq(:PROCESSED), refund_response.gateway_error
+    refund_response.amount.should == 10
+    refund_response.transaction_type.should == :REFUND
+
+    check_balance(nil, init_balance)
+    check_balance(kb_account_id_for_contractor, 0)
   end
 
   private

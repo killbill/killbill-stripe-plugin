@@ -74,10 +74,13 @@ module Killbill #:nodoc:
 
       def refund_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         # Pass extra parameters for the gateway here
-        options = {
-            :reverse_transfer => true,
-            :refund_application_fee => true
-        }
+        options = {}
+
+        reverse_transfer = find_value_from_properties(properties, :reverse_transfer)
+        options[:reverse_transfer] = ::Killbill::Plugin::ActiveMerchant::Utils.normalize(reverse_transfer)
+
+        refund_application_fee = find_value_from_properties(properties, :refund_application_fee)
+        options[:refund_application_fee] = ::Killbill::Plugin::ActiveMerchant::Utils.normalize(refund_application_fee)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
