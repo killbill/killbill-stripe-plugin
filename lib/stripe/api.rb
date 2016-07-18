@@ -31,11 +31,8 @@ module Killbill #:nodoc:
       def authorize_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        options = {
-            :customer => pm.stripe_customer_id,
-            :destination => get_destination(context.tenant_id),
-            :application_fee => get_application_fee(amount)
-        }
+        options = {}
+        populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -52,12 +49,8 @@ module Killbill #:nodoc:
       def purchase_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        # Pass extra parameters for the gateway here
-        options = {
-            :customer => pm.stripe_customer_id,
-            :destination => get_destination(context.tenant_id),
-            :application_fee => get_application_fee(amount)
-        }
+        options = {}
+        populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -109,10 +102,11 @@ module Killbill #:nodoc:
       def add_payment_method(kb_account_id, kb_payment_method_id, payment_method_props, set_default, properties, context)
         # Do we have a customer for that account already?
         stripe_customer_id = find_value_from_properties(payment_method_props.properties, :customer) || StripePaymentMethod.stripe_customer_id_from_kb_account_id(kb_account_id, context.tenant_id)
+        email = find_value_from_properties(payment_method_props.properties, :email) || @kb_apis.account_user_api.get_account_by_id(kb_account_id, @kb_apis.create_context(context.tenant_id)).email
 
         # Pass extra parameters for the gateway here
         options = {
-            :email => @kb_apis.account_user_api.get_account_by_id(kb_account_id, @kb_apis.create_context(context.tenant_id)).email,
+            :email => email,
             # This will either update the current customer if present, or create a new one
             :customer => stripe_customer_id,
             # Magic field, see also private_api.rb (works only when creating an account)
@@ -210,23 +204,40 @@ module Killbill #:nodoc:
 
       private
 
-
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
         super(kb_payment_method_id, properties, options, context)
       end
 
-      def get_destination(tenant_id)
-        return Killbill::Plugin::ActiveMerchant.config(tenant_id)[:stripe][:stripe_destination]
+      def populate_defaults(pm, amount, properties, context, options)
+        options[:customer] ||= pm.stripe_customer_id
+        options[:destination] ||= get_destination(properties, context)
+        options[:application_fee] ||= get_application_fee(amount, properties) unless options[:destination].nil?
       end
 
-      def get_application_fee(amount)
-        fees_percent = StripeApplicationFee.first.application_fee
-
-        return (fees_percent * amount*100).to_i
+      def get_destination(properties, context)
+        stripe_account_id = find_value_from_properties(properties, :destination)
+        if stripe_account_id.nil?
+          config(context.tenant_id)[:stripe][:stripe_destination]
+        elsif stripe_account_id =~ /[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}/
+          # Stripe doesn't use UUIDs - assume the destination is a Kill Bill account id
+          ::Killbill::Stripe::StripeResponse.managed_stripe_account_id_from_kb_account_id(stripe_account_id, context.tenant_id)
+        else
+          stripe_account_id
+        end
       end
 
+      def get_application_fee(amount, properties)
+        fees_amount = find_value_from_properties(properties, :fees_amount)
+        return fees_amount unless fees_amount.nil?
 
+        fees_percent = find_value_from_properties(properties, :fees_percent)
+        if fees_percent.nil?
+          application_fee = StripeApplicationFee.first
+          fees_percent = application_fee.nil? ? 0 : application_fee.application_fee
+        end
+        (fees_percent * amount * 100).to_i
+      end
     end
   end
 end

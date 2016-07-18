@@ -16,6 +16,8 @@ require 'yaml'
 require 'killbill'
 require 'killbill/helpers/active_merchant'
 
+require 'stripe/ext/active_merchant/active_merchant'
+
 require 'stripe/api'
 require 'stripe/private_api'
 

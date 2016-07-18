@@ -75,6 +75,20 @@ module Killbill #:nodoc:
 
         super.or(where_clause)
       end
+
+      def self.managed_stripe_account_id_from_kb_account_id(kb_account_id, kb_tenant_id)
+        t = self.arel_table
+
+        query = t[:api_call].eq('create_managed_account')
+           .and(t[:kb_account_id].eq(kb_account_id))
+           .and(t[:kb_tenant_id].eq(kb_tenant_id))
+        query = t.where(query).order(t[:id].desc).take(1).project(t[:params_id])
+
+        responses = find_by_sql(query.to_sql)
+        return nil if responses.empty?
+
+        responses.last.params_id
+      end
     end
   end
 end
