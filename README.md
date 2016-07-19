@@ -59,7 +59,7 @@ Usage
 
 You would typically implement [Stripe.js](https://stripe.com/docs/stripe.js) to tokenize credit cards. 
 
-After receiving the token from Stripe, call:
+After receiving the token from Stripe, create a Kill Bill payment method associated with it as such:
 
 ```
 curl -v \
@@ -78,14 +78,48 @@ curl -v \
          }]
        }
      }' \
-     "http://127.0.0.1:8080/1.0/kb/accounts/2a55045a-ce1d-4344-942d-b825536328f9/paymentMethods?isDefault=true"
+     "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?isDefault=true"
 ```
 
 An example implementation is exposed at:
 
 ```
-http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=2a55045a-ce1d-4344-942d-b825536328f9&kb_tenant_id=a86d9fd1-718d-4178-a9eb-46c61aa2548f
+http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
 ```
+
+After entering you credit card, this demo page will:
+
+* Tokenize it in Stripe (JS call)
+* Call Kill Bill during the redirect to create a payment method for that token
+* Output the result of the tokenization call
+
+### Connect
+
+Managed accounts must first have their own account in Kill Bill. Then, create them in Stripe using `POST /plugins/killbill-stripe/accounts`:
+
+```
+curl -v -X POST \
+     -d '{
+       "legal_entity": {
+         "address": {
+           "city": "San Francisco",
+           "country": "US"
+         },
+         "dob": {
+           "day": 31,
+           "month": 12,
+           "year": 1969
+         },
+         "first_name": "Jane",
+         "last_name": "Doe"",
+         "type": "individual"
+     }' \
+     http://127.0.0.1:8080/plugins/killbill-stripe/accounts?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
+```
+
+When charging customers, you can now pass the Kill Bill account id of the managed account as the `destination` plugin property.
+
+See the [Stripe documentation](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) for more details.
 
 Plugin properties
 -----------------
