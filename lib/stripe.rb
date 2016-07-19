@@ -21,7 +21,6 @@ require 'stripe/ext/active_merchant/active_merchant'
 require 'stripe/api'
 require 'stripe/private_api'
 
-require 'stripe/models/application_fee'
 require 'stripe/models/payment_method'
 require 'stripe/models/response'
 require 'stripe/models/transaction'

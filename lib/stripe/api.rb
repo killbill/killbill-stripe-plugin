@@ -3,21 +3,16 @@ module Killbill #:nodoc:
   module Stripe #:nodoc:
     class PaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PaymentPlugin
 
-
       def initialize
         gateway_builder = Proc.new do |config|
           ::ActiveMerchant::Billing::StripeGateway.new :login => config[:api_secret_key]
         end
-
 
         super(gateway_builder,
               :stripe,
               ::Killbill::Stripe::StripePaymentMethod,
               ::Killbill::Stripe::StripeTransaction,
               ::Killbill::Stripe::StripeResponse)
-
-
-
       end
 
       def on_event(event)
@@ -242,11 +237,9 @@ module Killbill #:nodoc:
         return fees_amount unless fees_amount.nil?
 
         fees_percent = find_value_from_properties(properties, :fees_percent)
-        if fees_percent.nil?
-          application_fee = StripeApplicationFee.first
-          fees_percent = application_fee.nil? ? 0 : application_fee.application_fee
-        end
-        (fees_percent * amount * 100).to_i
+        return (fees_percent * amount * 100).to_i unless fees_percent.nil?
+
+        config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
       end
     end
   end
