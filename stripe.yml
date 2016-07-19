@@ -1,7 +1,6 @@
 :stripe:
   :api_secret_key: <%= ENV['API_SECRET_KEY'] %>
   :api_publishable_key: <%= ENV['API_PUBLISHABLE_KEY'] %>
-  :stripe_destination: <%= ENV['STRIPE_DESTINATION'] %>
   :test: true
 
 :database:
