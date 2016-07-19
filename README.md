@@ -34,7 +34,6 @@ curl -v \
      -d ':stripe:
   :api_secret_key: "your-secret-key"
   :api_publishable_key: "your-publishable-key"
-  :destination: "default-destination-for-connect"
   :fees_amount: "default-fees-amount-for-connect"
   :fees_percent: "default-fees-percent-for-connect"' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
