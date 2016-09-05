@@ -13,7 +13,7 @@ Kill Bill compatibility
 | 1.0.y          | 0.14.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 2.0.y          | 0.15.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 3.0.y          | 0.16.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 4.0.y          | 0.18.z (and 0.17.y)| [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 4.0.y          | 0.17.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 
 Requirements
 ------------
@@ -33,7 +33,9 @@ curl -v \
      -H 'Content-Type: text/plain' \
      -d ':stripe:
   :api_secret_key: "your-secret-key"
-  :api_publishable_key: "your-publishable-key"' \
+  :api_publishable_key: "your-publishable-key"
+  :fees_amount: "default-fees-amount-for-connect"
+  :fees_percent: "default-fees-percent-for-connect"' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
@@ -41,6 +43,9 @@ To get your credentials:
 
 1. Go to [stripe.com](http://stripe.com/) and create an account. This account will be used as a sandbox environment for testing.
 2. In your Stripe account, click on **Your Account** (top right), then click on **Account Settings** and then on the **API Keys** tab. Write down your keys.
+
+For Connect, you can configure a default fees amount (`fees_amount`) or percentage (`fees_percent`, such as .3 for 30%). These can be modified on a per request basis by passing the plugin property `fees_amount` or `fees_percent`.
+You'll also need to add a row to the `stripe_application_fees` table and add a percent (such as .3 for 30%) to the `application_fee` field.
 
 To go to production, create a `stripe.yml` configuration file under `/var/tmp/bundles/plugins/ruby/killbill-stripe/x.y.z/` containing the following:
 
@@ -54,7 +59,7 @@ Usage
 
 You would typically implement [Stripe.js](https://stripe.com/docs/stripe.js) to tokenize credit cards. 
 
-After receiving the token from Stripe, call:
+After receiving the token from Stripe, create a Kill Bill payment method associated with it as such:
 
 ```
 curl -v \
@@ -73,14 +78,48 @@ curl -v \
          }]
        }
      }' \
-     "http://127.0.0.1:8080/1.0/kb/accounts/2a55045a-ce1d-4344-942d-b825536328f9/paymentMethods?isDefault=true"
+     "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?isDefault=true"
 ```
 
 An example implementation is exposed at:
 
 ```
-http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=2a55045a-ce1d-4344-942d-b825536328f9&kb_tenant_id=a86d9fd1-718d-4178-a9eb-46c61aa2548f
+http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
 ```
+
+After entering you credit card, this demo page will:
+
+* Tokenize it in Stripe (JS call)
+* Call Kill Bill during the redirect to create a payment method for that token
+* Output the result of the tokenization call
+
+### Connect
+
+Managed accounts must first have their own account in Kill Bill. Then, create them in Stripe using `POST /plugins/killbill-stripe/accounts`:
+
+```
+curl -v -X POST \
+     -d '{
+       "legal_entity": {
+         "address": {
+           "city": "San Francisco",
+           "country": "US"
+         },
+         "dob": {
+           "day": 31,
+           "month": 12,
+           "year": 1969
+         },
+         "first_name": "Jane",
+         "last_name": "Doe"",
+         "type": "individual"
+     }' \
+     http://127.0.0.1:8080/plugins/killbill-stripe/accounts?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
+```
+
+When charging customers, you can now pass the Kill Bill account id of the managed account as the `destination` plugin property.
+
+See the [Stripe documentation](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) for more details.
 
 Plugin properties
 -----------------
@@ -111,3 +150,8 @@ Plugin properties
 | payment_instrument_name      | ApplePay tokenization attribute                                   |
 | payment_network              | ApplePay tokenization attribute                                   |
 | transaction_identifier       | ApplePay tokenization attribute                                   |
+| destination                  | [Connect] KB account id of the receiving account                  |
+| fees_amount                  | [Connect] Amount in cents of fees to collect                      |
+| fees_percent                 | [Connect] Percentage amount of fees to collect                    |
+| reverse_transfer             | [Connect] True if the transfer should be reversed when refunding  |
+| refund_application_fee       | [Connect] True if fees should be refunded when refunding          |
