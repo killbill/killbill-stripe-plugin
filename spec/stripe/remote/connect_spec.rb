@@ -18,6 +18,15 @@ describe Killbill::Stripe::PaymentPlugin do
     kb_account_id
   end
 
+  let(:kb_payment) do
+    payment = nil
+    kb_payment_id = SecureRandom.uuid
+    1.upto(2) do
+      payment = plugin.kb_apis.proxied_services[:payment_api].add_payment(kb_payment_id)
+    end
+    payment
+  end
+
   let(:kb_tenant_id) do
     SecureRandom.uuid
   end
@@ -84,7 +93,7 @@ describe Killbill::Stripe::PaymentPlugin do
     props = []
     props << build_property(:destination, kb_account_id_for_contractor)
     props << build_property(:fees_amount, 200)
-    payment_response = plugin.purchase_payment(kb_account_id_for_customer, SecureRandom.uuid, SecureRandom.uuid, pm.kb_payment_method_id, 10, :USD, props, call_context)
+    payment_response = plugin.purchase_payment(kb_account_id_for_customer, kb_payment.id, kb_payment.transactions[0].id, pm.kb_payment_method_id, 10, :USD, props, call_context)
 
     plugin.logger.info "Useful links:
 Contractor dashboard: https://dashboard.stripe.com/#{stripe_account['id']}/test/dashboard
@@ -101,7 +110,7 @@ Collected fees:       https://dashboard.stripe.com/test/applications/fees"
     props = []
     props << build_property(:reverse_transfer, 'true')
     props << build_property(:refund_application_fee, 'true')
-    refund_response = plugin.refund_payment(kb_account_id_for_customer, payment_response.kb_payment_id, SecureRandom.uuid, pm.kb_payment_method_id, 10, :USD, props, call_context)
+    refund_response = plugin.refund_payment(kb_account_id_for_customer, payment_response.kb_payment_id, kb_payment.transactions[1].id, pm.kb_payment_method_id, 10, :USD, props, call_context)
     refund_response.status.should eq(:PROCESSED), refund_response.gateway_error
     refund_response.amount.should == 10
     refund_response.transaction_type.should == :REFUND

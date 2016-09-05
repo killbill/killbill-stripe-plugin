@@ -118,6 +118,22 @@ describe Killbill::Stripe::PaymentPlugin do
     refund_response.transaction_type.should == :REFUND
   end
 
+  it 'prevents double payments' do
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :PURCHASE
+
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :PURCHASE
+
+    responses = Killbill::Stripe::StripeResponse.all
+    responses.size.should == 2 + 1
+    responses[1].params_id.should == responses[2].params_id
+  end
+
   # It doesn't look like Stripe supports multiple partial captures
   #it 'should be able to auth, capture and refund' do
   #  payment_response = @plugin.authorize_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, @properties, @call_context)

@@ -209,6 +209,11 @@ module Killbill #:nodoc:
 
       private
 
+      def before_gateways(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
+        super(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
+        options[:idempotency_key] ||= kb_transaction.external_key
+      end
+
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
         super(kb_payment_method_id, properties, options, context)
