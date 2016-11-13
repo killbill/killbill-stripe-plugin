@@ -5,15 +5,17 @@ Plugin to use [Stripe](https://stripe.com/) as a gateway.
 
 Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.ruby%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.ruby:stripe-plugin`.
 
+A full end-to-end integration demo is available [here](https://github.com/killbill/killbill-stripe-demo).
+
 Kill Bill compatibility
 -----------------------
 
 | Plugin version | Kill Bill version  | Stripe version                                            |
 | -------------: | -----------------: | --------------------------------------------------------: |
-| 1.0.y          | 0.14.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 2.0.y          | 0.15.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 3.0.y          | 0.16.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 4.0.y          | 0.17.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 1.x.y          | 0.14.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 2.x.y          | 0.15.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 3.x.y          | 0.16.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 4.x.y          | 0.17.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 
 Requirements
 ------------
@@ -117,8 +119,6 @@ curl -v -X POST \
      http://127.0.0.1:8080/plugins/killbill-stripe/accounts?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
 ```
 
-A full end-to-end integration demo is also available [here](https://github.com/killbill/killbill-stripe-demo).
-=======
 When charging customers, you can now pass the Kill Bill account id of the managed account as the `destination` plugin property.
 
 See the [Stripe documentation](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) for more details.
