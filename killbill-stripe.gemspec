@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 7.0'
+  s.add_dependency 'killbill', '~> 8.0'
 
   s.add_dependency 'sinatra', '~> 1.3.4'
   s.add_dependency 'thread_safe', '~> 0.3.4'
@@ -34,7 +34,8 @@ Gem::Specification.new do |s|
   end
   s.add_dependency 'actionpack', '~> 4.1.0'
   s.add_dependency 'actionview', '~> 4.1.0'
-  s.add_dependency 'activemerchant', '~> 1.48.0'
+  # 1.56.0 and above requires Ruby 2.0
+  s.add_dependency 'activemerchant', '~> 1.55.0'
   s.add_dependency 'offsite_payments', '~> 2.1.0'
   s.add_dependency 'monetize', '~> 1.1.0'
   s.add_dependency 'money', '~> 6.5.1'

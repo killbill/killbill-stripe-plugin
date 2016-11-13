@@ -1,3 +1,4 @@
+include Killbill::Plugin::ActiveMerchant
 module Killbill #:nodoc:
   module Stripe #:nodoc:
     class PaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PaymentPlugin
@@ -25,10 +26,8 @@ module Killbill #:nodoc:
       def authorize_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        # Pass extra parameters for the gateway here
-        options = {
-            :customer => pm.stripe_customer_id
-        }
+        options = {}
+        populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -45,10 +44,8 @@ module Killbill #:nodoc:
       def purchase_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        # Pass extra parameters for the gateway here
-        options = {
-            :customer => pm.stripe_customer_id
-        }
+        options = {}
+        populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -74,6 +71,12 @@ module Killbill #:nodoc:
         # Pass extra parameters for the gateway here
         options = {}
 
+        reverse_transfer = find_value_from_properties(properties, :reverse_transfer)
+        options[:reverse_transfer] = ::Killbill::Plugin::ActiveMerchant::Utils.normalize(reverse_transfer)
+
+        refund_application_fee = find_value_from_properties(properties, :refund_application_fee)
+        options[:refund_application_fee] = ::Killbill::Plugin::ActiveMerchant::Utils.normalize(refund_application_fee)
+
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
       end
@@ -97,10 +100,11 @@ module Killbill #:nodoc:
       def add_payment_method(kb_account_id, kb_payment_method_id, payment_method_props, set_default, properties, context)
         # Do we have a customer for that account already?
         stripe_customer_id = find_value_from_properties(payment_method_props.properties, :customer) || StripePaymentMethod.stripe_customer_id_from_kb_account_id(kb_account_id, context.tenant_id)
+        email = find_value_from_properties(payment_method_props.properties, :email) || @kb_apis.account_user_api.get_account_by_id(kb_account_id, @kb_apis.create_context(context.tenant_id)).email
 
         # Pass extra parameters for the gateway here
         options = {
-            :email => @kb_apis.account_user_api.get_account_by_id(kb_account_id, @kb_apis.create_context(context.tenant_id)).email,
+            :email => email,
             # This will either update the current customer if present, or create a new one
             :customer => stripe_customer_id,
             # Magic field, see also private_api.rb (works only when creating an account)
@@ -182,25 +186,65 @@ module Killbill #:nodoc:
         super(kb_account_id, descriptor_fields, properties, context)
       end
 
-      def process_notification(notification, properties, context)
-        # Pass extra parameters for the gateway here
-        options = {}
-        properties = merge_properties(properties, options)
+      def process_notification(notification_json, properties, context)
+        notification = JSON.parse(notification_json)
+        gw_response = ::ActiveMerchant::Billing::Response.new(true,
+                                                              nil,
+                                                              notification,
+                                                              :test => !notification['livemode'],
+                                                              :authorization => notification['request'],
+                                                              :avs_result => nil,
+                                                              :cvv_result => nil,
+                                                              :emv_authorization => nil,
+                                                              :error_code => nil)
+        save_response_and_transaction(gw_response, "webhook.#{notification['type']}".to_sym, nil, context.tenant_id, nil)
 
-        super(notification, properties, context) do |gw_notification, service|
-          # Retrieve the payment
-          # gw_notification.kb_payment_id =
-          #
-          # Set the response body
-          # gw_notification.entity =
-        end
+        gw_notification = ::Killbill::Plugin::Model::GatewayNotification.new
+        gw_notification.kb_payment_id = nil
+        gw_notification.status = 200
+        gw_notification.headers = {}
+        gw_notification.properties = []
+        gw_notification
       end
 
       private
 
+      def before_gateways(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
+        super(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
+        options[:idempotency_key] ||= kb_transaction.external_key
+      end
+
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
         super(kb_payment_method_id, properties, options, context)
+      end
+
+      def populate_defaults(pm, amount, properties, context, options)
+        options[:customer] ||= pm.stripe_customer_id
+        options[:destination] ||= get_destination(properties, context)
+        options[:application_fee] ||= get_application_fee(amount, properties) unless options[:destination].nil?
+      end
+
+      def get_destination(properties, context)
+        stripe_account_id = find_value_from_properties(properties, :destination)
+        if stripe_account_id.nil?
+          config(context.tenant_id)[:stripe][:stripe_destination]
+        elsif stripe_account_id =~ /[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}/
+          # Stripe doesn't use UUIDs - assume the destination is a Kill Bill account id
+          ::Killbill::Stripe::StripeResponse.managed_stripe_account_id_from_kb_account_id(stripe_account_id, context.tenant_id)
+        else
+          stripe_account_id
+        end
+      end
+
+      def get_application_fee(amount, properties)
+        fees_amount = find_value_from_properties(properties, :fees_amount)
+        return fees_amount unless fees_amount.nil?
+
+        fees_percent = find_value_from_properties(properties, :fees_percent)
+        return (fees_percent * amount * 100).to_i unless fees_percent.nil?
+
+        config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
       end
     end
   end
