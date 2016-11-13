@@ -1,3 +1,9 @@
+4.1.0
+    Initial release for Kill Bill 0.18.x
+
+4.0.0
+    Initial release for Kill Bill 0.17.x
+
 3.0.2
     Allow override of the Stripe customer id in the add_payment_method call
 
