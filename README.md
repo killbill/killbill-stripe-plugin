@@ -13,9 +13,8 @@ Kill Bill compatibility
 | Plugin version | Kill Bill version  | Stripe version                                            |
 | -------------: | -----------------: | --------------------------------------------------------: |
 | 1.x.y          | 0.14.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 2.x.y          | 0.15.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 3.x.y          | 0.16.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 4.x.y          | 0.17.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 4.x.y          | 0.18.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 
 Requirements
 ------------
