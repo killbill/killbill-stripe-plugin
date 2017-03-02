@@ -59,7 +59,7 @@ ActiveRecord::Schema.define(:version => 20140410153635) do
     t.string   "kb_payment_transaction_id"
     t.string   "transaction_type"
     t.string   "payment_processor_account_id"
-    t.string   "message"
+    t.text     "message"
     t.string   "authorization"
     t.boolean  "fraud_review"
     t.boolean  "test"
