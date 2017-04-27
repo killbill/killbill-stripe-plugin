@@ -26,7 +26,7 @@ module Killbill #:nodoc:
       def authorize_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        options = {}
+        options = {:kb_account_id => kb_account_id, :kb_payment_id => kb_payment_id, :kb_payment_transaction_id => kb_payment_transaction_id, :kb_payment_method_id => kb_payment_method_id}
         populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
@@ -44,7 +44,7 @@ module Killbill #:nodoc:
       def purchase_payment(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
-        options = {}
+        options = {:kb_account_id => kb_account_id, :kb_payment_id => kb_payment_id, :kb_payment_transaction_id => kb_payment_transaction_id, :kb_payment_method_id => kb_payment_method_id}
         populate_defaults(pm, amount, properties, context, options)
 
         properties = merge_properties(properties, options)
@@ -223,6 +223,10 @@ module Killbill #:nodoc:
         options[:customer] ||= pm.stripe_customer_id
         options[:destination] ||= get_destination(properties, context)
         options[:application_fee] ||= get_application_fee(amount, properties) unless options[:destination].nil?
+
+        # Dynamic descriptor formatted and take first 22 chars
+        dynamic_descriptor = config(context.tenant_id)[:stripe][:dynamic_descriptor]
+        options[:statement_description] ||= (dynamic_descriptor % options)[0..21] unless dynamic_descriptor.nil?
       end
 
       def get_destination(properties, context)

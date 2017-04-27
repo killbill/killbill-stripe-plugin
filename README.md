@@ -36,7 +36,8 @@ curl -v \
   :api_secret_key: "your-secret-key"
   :api_publishable_key: "your-publishable-key"
   :fees_amount: "default-fees-amount-for-connect"
-  :fees_percent: "default-fees-percent-for-connect"' \
+  :fees_percent: "default-fees-percent-for-connect"
+  :dynamic_descriptor: "dynamic-descriptor-template"' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
@@ -47,6 +48,8 @@ To get your credentials:
 
 For Connect, you can configure a default fees amount (`fees_amount`) or percentage (`fees_percent`, such as .3 for 30%). These can be modified on a per request basis by passing the plugin property `fees_amount` or `fees_percent`.
 You'll also need to add a row to the `stripe_application_fees` table and add a percent (such as .3 for 30%) to the `application_fee` field.
+
+For dynamic descriptors, you can configure a dynamic descriptor template (`dynamic_descriptor`) with Ruby's string interpolation syntax. For example `"KILLBILL %{kb_payment_transaction_id}"`. Available variables are `kb_account_id`, `kb_payment_id`, `kb_payment_transaction_id`, `kb_payment_method_id`. Stripe limits to 22 characters for the charge descriptor so the first 22 characters of the description will be used.
 
 To go to production, create a `stripe.yml` configuration file under `/var/tmp/bundles/plugins/ruby/killbill-stripe/x.y.z/` containing the following:
 
