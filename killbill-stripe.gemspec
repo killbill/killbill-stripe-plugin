@@ -14,10 +14,8 @@ Gem::Specification.new do |s|
   s.email    = 'killbilling-users@googlegroups.com'
   s.homepage = 'http://killbill.io'
 
-  s.files         = `git ls-files`.split("\n")
-  s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
+  s.files         = Dir['lib/**/*']
   s.bindir        = 'bin'
-  s.executables   = `git ls-files -- bin/*`.split("\n").map { |f| File.basename(f) }
   s.require_paths = ['lib']
 
   s.rdoc_options << '--exclude' << '.'
