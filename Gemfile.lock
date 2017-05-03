@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    killbill-stripe (4.1.0)
+    killbill-stripe (4.1.1)
       actionpack (~> 4.1.0)
       actionview (~> 4.1.0)
       activemerchant (~> 1.55.0)
