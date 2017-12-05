@@ -33,7 +33,7 @@ describe Killbill::Stripe::PaymentPlugin do
 
   it 'should be able to create and retrieve payment methods' do
     # Override default payment method params to make sure we store the data returned by Stripe (see https://github.com/killbill/killbill-stripe-plugin/issues/8)
-    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], { :cc_type => '', :cc_last_4 => '' })
+    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], default_pm_card_properties)
 
     pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
@@ -44,8 +44,6 @@ describe Killbill::Stripe::PaymentPlugin do
     pm_props[:ccFirstName].should == 'John'
     pm_props[:ccLastName].should == 'Doe'
     pm_props[:ccType].should == 'Visa'
-    pm_props[:ccExpirationMonth].should == '12'
-    pm_props[:ccExpirationYear].should == '2017'
     pm_props[:ccLast4].should == '4242'
     pm_props[:address1].should == '5, oakriu road'
     pm_props[:address2].should == 'apt. 298'
@@ -85,7 +83,7 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should be able to charge a Credit Card directly' do
-    properties = build_pm_properties
+    properties = build_pm_properties(nil, { :token => @pm.token })
 
     # We created the payment methods, hence the rows
     nb_responses = Killbill::Stripe::StripeResponse.count
@@ -189,5 +187,11 @@ describe Killbill::Stripe::PaymentPlugin do
     payment_response = @plugin.void_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[2].id, @pm.kb_payment_method_id, @properties, @call_context)
     payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
     payment_response.transaction_type.should == :VOID
+  end
+
+  private
+
+  def default_pm_card_properties
+    { :token => 'tok_visa', :cc_number => '', :cc_exp_month => '', :cc_exp_year => '', :cc_verification_value => '' }
   end
 end
