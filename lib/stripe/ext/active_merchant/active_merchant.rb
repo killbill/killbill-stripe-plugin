@@ -71,25 +71,24 @@ module ActiveMerchant
         params = {}
         post = {}
 
-        if card_brand(payment) == "check"
-          bank_token_response = tokenize_bank_account(payment)
-          if bank_token_response.success?
-            params = { source: bank_token_response.params["token"]["id"] }
-          else
-            return bank_token_response
-          end
-        elsif payment.is_a?(ApplePayPaymentToken)
+        if payment.is_a?(ApplePayPaymentToken)
           token_exchange_response = tokenize_apple_pay_token(payment)
           params = { card: token_exchange_response.params["token"]["id"] } if token_exchange_response.success?
+        elsif payment.is_a?(KillBill::Stripe::BankAccount)
+          post.merge!(bank_account_params(payment, options))
         else
           add_creditcard(params, payment, options)
         end
 
-        post[:validate] = options[:validate] unless options[:validate].nil?
-        post[:description] = options[:description] if options[:description]
-        post[:email] = options[:email] if options[:email]
+        unless payment.is_a?(KillBill::Stripe::BankAccount)
+          post[:validate] = options[:validate] unless options[:validate].nil?
+          post[:description] = options[:description] if options[:description]
+          post[:email] = options[:email] if options[:email]
+        end
 
-        if options[:account]
+        if post[:bank_account]
+          commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true })
+        elsif options[:account]
           add_external_account(post, params, payment)
           commit(:post, "accounts/#{CGI.escape(options[:account])}/external_accounts", post, options)
         elsif options[:customer]
@@ -109,8 +108,37 @@ module ActiveMerchant
           commit(:post, 'customers', post.merge(params), options)
         end
       end
-      def tokenize_bank_account(bank_account, options = {})
-        account_holder_type = BANK_ACCOUNT_HOLDER_TYPE_MAPPING[bank_account.account_holder_type]
+
+      def commit(method, url, parameters = nil, options = {})
+        if options[:bank_account]
+          response = api_request(:post, url)
+          success = response["error"].nil?
+
+          Response.new(success, nil, response)
+        else
+          add_expand_parameters(parameters, options) if parameters
+          response = api_request(method, url, parameters, options)
+
+          success = !response.key?("error")
+
+          card = card_from_response(response)
+          avs_code = AVS_CODE_TRANSLATOR["line1: #{card["address_line1_check"]}, zip: #{card["address_zip_check"]}"]
+          cvc_code = CVC_CODE_TRANSLATOR[card["cvc_check"]]
+          Response.new(success,
+                       success ? "Transaction approved" : response["error"]["message"],
+                       response,
+                       :test => response.has_key?("livemode") ? !response["livemode"] : false,
+                       :authorization => authorization_from(success, url, method, response),
+                       :avs_result => { :code => avs_code },
+                       :cvv_result => cvc_code,
+                       :emv_authorization => emv_authorization_from_response(response),
+                       :error_code => success ? nil : error_code_from(response)
+                      )
+        end
+      end
+
+      def bank_account_params(bank_account, options = {})
+        account_holder_type = BANK_ACCOUNT_HOLDER_TYPE_MAPPING[bank_account.type]
 
         post = {
           bank_account: {
@@ -118,19 +146,10 @@ module ActiveMerchant
             country: 'US',
             currency: 'usd',
             routing_number: bank_account.routing_number,
-            name: bank_account.name,
+            name: bank_account.bank_name,
             account_holder_type: account_holder_type,
           }
         }
-
-        token_response = api_request(:post, "tokens?#{post_data(post)}")
-        success = token_response["error"].nil?
-
-        if success && token_response["id"]
-          Response.new(success, nil, token: token_response)
-        else
-          Response.new(success, token_response["error"]["message"])
-        end
       end
 
       def ach?(payment_method)

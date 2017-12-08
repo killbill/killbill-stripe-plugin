@@ -33,7 +33,7 @@ describe Killbill::Stripe::PaymentPlugin do
 
   it 'should be able to create and retrieve payment methods' do
     # Override default payment method params to make sure we store the data returned by Stripe (see https://github.com/killbill/killbill-stripe-plugin/issues/8)
-    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], default_pm_card_properties)
+    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], card_properties)
 
     pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
@@ -189,9 +189,33 @@ describe Killbill::Stripe::PaymentPlugin do
     payment_response.transaction_type.should == :VOID
   end
 
+  it 'should be able to add a bank account, verify and accept a bank charge' do
+    pm = @plugin.add_payment_method(@pm.kb_account_id, SecureRandom.uuid, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
+  end
+
   private
 
-  def default_pm_card_properties
-    { :token => 'tok_visa', :cc_number => '', :cc_exp_month => '', :cc_exp_year => '', :cc_verification_value => '' }
+  def bank_account_properties
+    info = Killbill::Plugin::Model::PaymentMethodPlugin.new
+    info.properties = {
+      :bank_name => "STRIPE TEST BANK",
+      :account_number => "000123456789",
+      :routing_number => "110000000",
+    }.map {|k,v| build_property(k, v)}
+    info
+  end
+
+  def bank_account_verification_numbers
+    [32, 45]
+  end
+
+  def card_properties
+    {
+      :token => 'tok_visa',
+      :cc_number => '',
+      :cc_exp_month => '',
+      :cc_exp_year => '',
+      :cc_verification_value => '',
+    }
   end
 end

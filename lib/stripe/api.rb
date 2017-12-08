@@ -2,7 +2,6 @@ include Killbill::Plugin::ActiveMerchant
 module Killbill #:nodoc:
   module Stripe #:nodoc:
     class PaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PaymentPlugin
-
       def initialize
         gateway_builder = Proc.new do |config|
           ::ActiveMerchant::Billing::StripeGateway.new :login => config[:api_secret_key]
@@ -216,7 +215,17 @@ module Killbill #:nodoc:
 
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
-        super(kb_payment_method_id, properties, options, context)
+        # check if bank account
+        if is_bank_account?(properties)
+          BankAccount.new({
+            :bank_name => find_value_from_properties(properties, :bank_name),
+            :routing_number => find_value_from_properties(properties, :routing_number),
+            :account_number => find_value_from_properties(properties, :account_number),
+            :type => find_value_from_properties(properties, :type) || "personal",
+          })
+        else
+          super(kb_payment_method_id, properties, options, context)
+        end
       end
 
       def populate_defaults(pm, amount, properties, context, options)
@@ -245,6 +254,23 @@ module Killbill #:nodoc:
         return (fees_percent * amount * 100).to_i unless fees_percent.nil?
 
         config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
+      end
+
+      private
+
+      def is_bank_account?(properties)
+        find_value_from_properties(properties, :routing_number) &&
+          find_value_from_properties(properties, :account_number)
+      end
+    end
+
+    class BankAccount
+      attr_accessor :bank_name, :account_number, :routing_number, :type
+
+      def initialize(args)
+        args.each do |k,v|
+          instance_variable_set("@#{k}", v) unless v.nil?
+        end
       end
     end
   end
