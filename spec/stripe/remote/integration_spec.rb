@@ -191,6 +191,11 @@ describe Killbill::Stripe::PaymentPlugin do
 
   it 'should be able to add a bank account, verify and accept a bank charge' do
     pm = @plugin.add_payment_method(@pm.kb_account_id, SecureRandom.uuid, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
+    pm.token.should be_kind_of(String)
+    pm.stripe_customer_id.should be_kind_of(String)
+    pm.bank_name.should eq("STRIPE TEST BANK")
+    pm.bank_routing_number.should eq("110000000")
+    pm.country.should eq("US")
   end
 
   private
