@@ -196,6 +196,7 @@ describe Killbill::Stripe::PaymentPlugin do
     pm.bank_name.should eq("STRIPE TEST BANK")
     pm.bank_routing_number.should eq("110000000")
     pm.country.should eq("US")
+    pm.source_type.should eq("bank_account")
   end
 
   private
