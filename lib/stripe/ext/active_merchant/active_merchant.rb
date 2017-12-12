@@ -50,11 +50,6 @@ module ActiveMerchant
       #
       #   purchase(money, nil, { :customer => id, ... })
       def purchase(money, payment, options = {})
-        if ach?(payment)
-          direct_bank_error = "Direct bank account transactions are not supported. Bank accounts must be stored and verified before use."
-          return Response.new(false, direct_bank_error)
-        end
-
         MultiResponse.run do |r|
           if payment.is_a?(ApplePayPaymentToken)
             r.process { tokenize_apple_pay_token(payment) }
@@ -156,15 +151,6 @@ module ActiveMerchant
             account_holder_type: account_holder_type,
           }
         }
-      end
-
-      def ach?(payment_method)
-        case payment_method
-        when String, nil
-          false
-        else
-          card_brand(payment_method) == "check"
-        end
       end
     end
   end
