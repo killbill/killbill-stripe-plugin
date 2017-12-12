@@ -72,6 +72,16 @@ post '/plugins/killbill-stripe', :provides => 'json' do
   response.to_json
 end
 
+post '/plugins/killbill-stripe/verify', :provides => 'json' do
+  return params.to_json if development? or test?
+
+  kb_payment_method_id = plugin(session).verify_bank_account(params)
+
+  response = params.dup
+  response['kb_payment_method_id'] = kb_payment_method_id
+  response.to_json
+end
+
 # Create managed account
 post '/plugins/killbill-stripe/accounts', :provides => 'json' do
   kb_account_id = params.delete('kb_account_id')
