@@ -206,7 +206,17 @@ module Killbill #:nodoc:
         gw_notification
       end
 
+      def verify_bank_account(stripe_customer_id, stripe_bank_account_id, amounts, kb_tenant_id)
+        gateway = lookup_gateway(:default, kb_tenant_id)
+        url = "customers/#{CGI.escape(stripe_customer_id)}/sources/#{CGI.escape(stripe_bank_account_id)}/verify?#{amounts_to_uri(amounts)}"
+        gateway.api_request(:post, url)
+      end
+
       private
+
+      def amounts_to_uri(amounts)
+        amounts.map {|v| "amounts[]=#{v.to_s}" }.join("&")
+      end
 
       def before_gateways(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
         super(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
@@ -255,8 +265,6 @@ module Killbill #:nodoc:
 
         config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
       end
-
-      private
 
       def is_bank_account?(properties)
         find_value_from_properties(properties, :routing_number) &&
