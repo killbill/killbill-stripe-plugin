@@ -7,6 +7,7 @@ module Killbill #:nodoc:
       def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {:source_type => "cc"}, model = ::Killbill::Stripe::StripePaymentMethod)
         stripe_customer_id = options[:customer] || self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
         if response.params["bank_account"]
+          extra_params = {} #overwrite extra params because they will be passed with assumption of CC
           payment_response = {
             "token" => response.params["bank_account"]["id"],
             "address_country" => response.params["bank_account"]["country"],
