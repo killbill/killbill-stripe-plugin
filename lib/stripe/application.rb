@@ -75,10 +75,10 @@ end
 post '/plugins/killbill-stripe/verify', :provides => 'json' do
   return params.to_json if development? or test?
 
-  kb_payment_method_id = plugin(session).verify_bank_account(params)
+  stripe_response = plugin(session).verify_bank_account(params)
 
   response = params.dup
-  response['kb_payment_method_id'] = kb_payment_method_id
+  response['stripe_response'] = stripe_response
   response.to_json
 end
 
