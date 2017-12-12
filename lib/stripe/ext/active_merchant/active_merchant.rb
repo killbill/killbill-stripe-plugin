@@ -83,11 +83,12 @@ module ActiveMerchant
 
         if post[:bank_account]
           MultiResponse.run(:first) do |r|
-           r.process { commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true }) }
+            # get token and associate it with the customer
+            r.process { commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true }) }
 
-           if r.success?
-             r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
-           end
+            if r.success?
+              r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
+            end
           end
         elsif options[:account]
           add_external_account(post, params, payment)
