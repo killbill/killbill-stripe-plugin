@@ -227,7 +227,7 @@ module Killbill #:nodoc:
         return nil if options[:customer_id]
         # check if bank account
         if is_bank_account?(properties)
-          BankAccount.new({
+          ActiveMerchant::Billing::StripeGateway::BankAccount.new({
             :bank_name => find_value_from_properties(properties, :bank_name),
             :routing_number => find_value_from_properties(properties, :routing_number),
             :account_number => find_value_from_properties(properties, :account_number),
@@ -271,15 +271,5 @@ module Killbill #:nodoc:
           find_value_from_properties(properties, :account_number)
       end
     end
-    class BankAccount
-      attr_accessor :bank_name, :account_number, :routing_number, :type
-
-      def initialize(args)
-        args.each do |k,v|
-          instance_variable_set("@#{k}", v) unless v.nil?
-        end
-      end
-    end
-
   end
 end

@@ -68,14 +68,14 @@ module ActiveMerchant
 
         if payment.is_a?(ApplePayPaymentToken)
           token_exchange_response = tokenize_apple_pay_token(payment)
-          params = { card: token_exchange_response.params["token"]["id"] } if token_exchange_response.success?
-        elsif payment.is_a?(KillBill::Stripe::BankAccount)
+          params = { :card => token_exchange_response.params["token"]["id"] } if token_exchange_response.success?
+        elsif payment.is_a?(BankAccount)
           post.merge!(bank_account_params(payment, options))
         else
           add_creditcard(params, payment, options)
         end
 
-        unless payment.is_a?(KillBill::Stripe::BankAccount)
+        unless payment.is_a?(BankAccount)
           post[:validate] = options[:validate] unless options[:validate].nil?
           post[:description] = options[:description] if options[:description]
           post[:email] = options[:email] if options[:email]
@@ -152,6 +152,16 @@ module ActiveMerchant
             account_holder_type: account_holder_type,
           }
         }
+      end
+
+      class BankAccount
+        attr_accessor :bank_name, :account_number, :routing_number, :type
+
+        def initialize(args)
+          args.each do |k,v|
+            instance_variable_set("@#{k}", v) unless v.nil?
+          end
+        end
       end
     end
   end
