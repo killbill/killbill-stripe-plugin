@@ -122,6 +122,19 @@ When charging customers, you can now pass the Kill Bill account id of the manage
 
 See the [Stripe documentation](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) for more details.
 
+### ACH payments
+
+You can also add, verify and charge bank accounts directly. Like credit cards, you would typically first use [Stripe.js](https://stripe.com/docs/stripe.js) to tokenize a bank account. Unlike credit cards bank accounts need to be verified by confirming the amounts of 2 microdeposits sent to the account. After receiving the amounts, you can verify the bank account as such:
+
+```
+curl -v -X POST \
+     -d '[<VERIFICATION AMOUNT 1>, <VERIFICATION AMOUNT 2>]' \
+     http://127.0.0.1:8080/plugins/killbill-stripe/verify
+```
+
+See the [Stripe documentation](https://stripe.com/docs/ach) for more details.
+
+
 Plugin properties
 -----------------
 
@@ -156,3 +169,8 @@ Plugin properties
 | fees_percent                 | [Connect] Percentage amount of fees to collect                    |
 | reverse_transfer             | [Connect] True if the transfer should be reversed when refunding  |
 | refund_application_fee       | [Connect] True if fees should be refunded when refunding          |
+| source_type                  | Credit card or bank account                                       |
+| bank_name                    | Bank name                                                         |
+| bank_routing_number          | Bank account routing number                                       |
+| bank_account_first_name      | Bank account holder first name                                    |
+| bank_account_last_name       | Bank account holder last name                                     |
