@@ -190,19 +190,21 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should be able to add a bank account, verify and accept a bank charge' do
+    kb_account_id = SecureRandom.uuid
     kb_payment_method_id = SecureRandom.uuid
-    pm = @plugin.add_payment_method(@pm.kb_account_id, kb_payment_method_id, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
+    create_kb_account(kb_account_id, @plugin.kb_apis.proxied_services[:account_user_api])
+    account = @plugin.kb_apis.account_user_api.get_account_by_id(kb_account_id, @plugin.kb_apis.create_context(@call_context.tenant_id))
+    pm = @plugin.add_payment_method(kb_account_id, kb_payment_method_id, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
     pm.token.should be_kind_of(String)
     pm.stripe_customer_id.should be_kind_of(String)
     pm.bank_name.should eq("STRIPE TEST BANK")
     pm.bank_routing_number.should eq("110000000")
-    pm.country.should eq("US")
     pm.source_type.should eq("bank_account")
 
     properties = [build_property(:token, pm.token)]
     kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
 
-    attempt_response = @plugin.purchase_payment(@pm.kb_account_id, kb_payment.id, kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    attempt_response = @plugin.purchase_payment(kb_account_id, kb_payment.id, kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
     attempt_response.status.should eq(:ERROR), attempt_response.gateway_error
 
     @plugin.verify_bank_account(pm.stripe_customer_id, pm.token, bank_account_verification_numbers, @call_context.tenant_id)

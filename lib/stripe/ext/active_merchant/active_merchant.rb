@@ -50,7 +50,7 @@ module ActiveMerchant
       #
       #   purchase(money, nil, { :customer => id, ... })
       def purchase(money, payment, options = {})
-        MultiResponse.run do |r|
+        responses = MultiResponse.run do |r|
           if payment.is_a?(ApplePayPaymentToken)
             r.process { tokenize_apple_pay_token(payment) }
             payment = StripePaymentToken.new(r.params["token"]) if r.success?
@@ -82,13 +82,24 @@ module ActiveMerchant
         end
 
         if post[:bank_account]
-          MultiResponse.run(:first) do |r|
+          has_customer = false
+          responses = MultiResponse.run do |r|
             # get token and associate it with the customer
             r.process { commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true }) }
 
             if r.success?
-              r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
+              if options[:customer]
+                has_customer = true
+                r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
+              else
+                r.process { commit(:post, "customers", { source: r.params["id"] } ) }
+              end
             end
+          end.responses
+          if has_customer
+            return responses.first
+          else
+            return responses.last
           end
         elsif options[:account]
           add_external_account(post, params, payment)
@@ -162,6 +173,39 @@ module ActiveMerchant
             instance_variable_set("@#{k}", v) unless v.nil?
           end
         end
+      end
+
+      private
+
+      def create_post_for_auth_or_purchase(money, payment, options)
+        post = {}
+
+        if payment.is_a?(StripePaymentToken)
+          add_payment_token(post, payment, options)
+        elsif payment_is_customer_id?(payment)
+          post[:customer] = payment
+        else
+          add_creditcard(post, payment, options)
+        end
+
+        unless emv_payment?(payment)
+          add_amount(post, money, options, true)
+          add_customer_data(post, options)
+          add_metadata(post, options)
+          post[:description] = options[:description]
+          post[:statement_descriptor] = options[:statement_description]
+          post[:receipt_email] = options[:receipt_email] if options[:receipt_email]
+          add_customer(post, payment, options)
+          add_flags(post, options)
+        end
+
+        add_application_fee(post, options)
+        add_destination(post, options)
+        post
+      end
+
+      def payment_is_customer_id?(payment)
+        /cus_\S+/.match(payment)
       end
     end
   end

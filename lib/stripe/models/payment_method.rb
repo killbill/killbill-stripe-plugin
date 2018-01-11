@@ -23,6 +23,11 @@ module Killbill #:nodoc:
         elsif response.params['sources']
           payment_response     = response.params['sources']['data'][0]
           customer_response = response.params
+          if response.params['sources']['data'][0]["object"] == "bank_account"
+            extra_params[:bank_name] = response.params["sources"]["data"][0]["bank_name"]
+            extra_params[:bank_routing_number] = response.params["sources"]["data"][0]["routing_number"]
+            extra_params[:source_type] = "bank_account"
+          end
         else
           payment_response = {}
           customer_response = { 'id' => stripe_customer_id }

@@ -225,7 +225,6 @@ module Killbill #:nodoc:
 
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
-        # check if bank account
         if is_bank_account?(properties)
           ActiveMerchant::Billing::StripeGateway::BankAccount.new({
             :bank_name => find_value_from_properties(properties, :bank_name),
@@ -233,6 +232,8 @@ module Killbill #:nodoc:
             :account_number => find_value_from_properties(properties, :account_number),
             :type => find_value_from_properties(properties, :type) || "personal",
           })
+        elsif !options[:customer].blank?
+          options[:customer]
         else
           super(kb_payment_method_id, properties, options, context)
         end
