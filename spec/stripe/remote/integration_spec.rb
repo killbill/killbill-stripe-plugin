@@ -44,6 +44,8 @@ describe Killbill::Stripe::PaymentPlugin do
     pm_props[:ccFirstName].should == 'John'
     pm_props[:ccLastName].should == 'Doe'
     pm_props[:ccType].should == 'Visa'
+    pm_props[:ccExpirationMonth].should == '12'
+    pm_props[:ccExpirationYear].should == '2020'
     pm_props[:ccLast4].should == '4242'
     pm_props[:address1].should == '5, oakriu road'
     pm_props[:address2].should == 'apt. 298'
