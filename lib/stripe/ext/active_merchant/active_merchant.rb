@@ -82,16 +82,16 @@ module ActiveMerchant
         end
 
         if post[:bank_account]
+          customer_url = "customers"
+          if options[:customer]
+            customer_url += "/#{CGI.escape(options[:customer])}/sources"
+          end
           responses = MultiResponse.run do |r|
             # get token and associate it with the customer
             r.process { commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true }) }
 
             if r.success?
-              if options[:customer]
-                r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
-              else
-                r.process { commit(:post, "customers", { source: r.params["id"] } ) }
-              end
+              r.process { commit(:post, customer_url, { source: r.params["id"] } ) }
             end
           end.responses
           if options[:customer]
