@@ -174,39 +174,6 @@ module ActiveMerchant
           end
         end
       end
-
-      private
-
-      def create_post_for_auth_or_purchase(money, payment, options)
-        post = {}
-
-        if payment.is_a?(StripePaymentToken)
-          add_payment_token(post, payment, options)
-        elsif payment_is_customer_id?(payment)
-          post[:customer] = payment
-        else
-          add_creditcard(post, payment, options)
-        end
-
-        unless emv_payment?(payment)
-          add_amount(post, money, options, true)
-          add_customer_data(post, options)
-          add_metadata(post, options)
-          post[:description] = options[:description]
-          post[:statement_descriptor] = options[:statement_description]
-          post[:receipt_email] = options[:receipt_email] if options[:receipt_email]
-          add_customer(post, payment, options)
-          add_flags(post, options)
-        end
-
-        add_application_fee(post, options)
-        add_destination(post, options)
-        post
-      end
-
-      def payment_is_customer_id?(payment)
-        /cus_\S+/.match(payment)
-      end
     end
   end
 end
