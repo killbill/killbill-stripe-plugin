@@ -4,16 +4,32 @@ module Killbill #:nodoc:
 
       self.table_name = 'stripe_payment_methods'
 
-      def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {}, model = ::Killbill::Stripe::StripePaymentMethod)
+      def self.from_response(kb_account_id, kb_payment_method_id, kb_tenant_id, cc_or_token, response, options, extra_params = {:source_type => "cc"}, model = ::Killbill::Stripe::StripePaymentMethod)
         stripe_customer_id = options[:customer] || self.stripe_customer_id_from_kb_account_id(kb_account_id, kb_tenant_id)
-        if !stripe_customer_id.blank? && response.respond_to?(:responses)
-          card_response     = response.responses.first.params
+        if response.params["bank_account"]
+          extra_params = {} #overwrite extra params because they will be passed with assumption of CC
+          payment_response = {
+            "token" => response.params["bank_account"]["id"],
+            "address_country" => response.params["bank_account"]["country"],
+          }
+          customer_response = { "id" => stripe_customer_id }
+          extra_params[:bank_name] = response.params["bank_account"]["bank_name"]
+          extra_params[:bank_routing_number] = response.params["bank_account"]["routing_number"]
+          extra_params[:source_type] = "bank_account"
+          cc_or_token ||= response.params["bank_account"]["id"]
+        elsif !stripe_customer_id.blank? && response.respond_to?(:responses)
+          payment_response     = response.responses.first.params
           customer_response = response.responses.last.params
         elsif response.params['sources']
-          card_response     = response.params['sources']['data'][0]
+          payment_response     = response.params['sources']['data'][0]
           customer_response = response.params
+          if response.params['sources']['data'][0]["object"] == "bank_account"
+            extra_params[:bank_name] = response.params["sources"]["data"][0]["bank_name"]
+            extra_params[:bank_routing_number] = response.params["sources"]["data"][0]["routing_number"]
+            extra_params[:source_type] = "bank_account"
+          end
         else
-          card_response = {}
+          payment_response = {}
           customer_response = { 'id' => stripe_customer_id }
         end
 
@@ -25,19 +41,19 @@ module Killbill #:nodoc:
               options,
               {
                   :stripe_customer_id => customer_response['id'],
-                  :token              => card_response['id'],
-                  :cc_first_name      => card_response['name'],
+                  :token              => payment_response['id'],
+                  :cc_first_name      => payment_response['name'],
                   :cc_last_name       => nil,
-                  :cc_type            => card_response['brand'],
-                  :cc_exp_month       => card_response['exp_month'],
-                  :cc_exp_year        => card_response['exp_year'],
-                  :cc_last_4          => card_response['last4'],
-                  :address1           => card_response['address_line1'],
-                  :address2           => card_response['address_line2'],
-                  :city               => card_response['address_city'],
-                  :state              => card_response['address_state'],
-                  :zip                => card_response['address_zip'],
-                  :country            => card_response['address_country']
+                  :cc_type            => payment_response['brand'],
+                  :cc_exp_month       => payment_response['exp_month'],
+                  :cc_exp_year        => payment_response['exp_year'],
+                  :cc_last_4          => payment_response['last4'],
+                  :address1           => payment_response['address_line1'],
+                  :address2           => payment_response['address_line2'],
+                  :city               => payment_response['address_city'],
+                  :state              => payment_response['address_state'],
+                  :zip                => payment_response['address_zip'],
+                  :country            => payment_response['address_country']
               }.merge!(extra_params.compact), # Don't override with nil values
               model)
       end

@@ -2,7 +2,6 @@ include Killbill::Plugin::ActiveMerchant
 module Killbill #:nodoc:
   module Stripe #:nodoc:
     class PaymentPlugin < ::Killbill::Plugin::ActiveMerchant::PaymentPlugin
-
       def initialize
         gateway_builder = Proc.new do |config|
           ::ActiveMerchant::Billing::StripeGateway.new :login => config[:api_secret_key]
@@ -207,7 +206,17 @@ module Killbill #:nodoc:
         gw_notification
       end
 
+      def verify_bank_account(stripe_customer_id, stripe_bank_account_id, amounts, kb_tenant_id)
+        gateway = lookup_gateway(:default, kb_tenant_id)
+        url = "customers/#{CGI.escape(stripe_customer_id)}/sources/#{CGI.escape(stripe_bank_account_id)}/verify?#{amounts_to_uri(amounts)}"
+        gateway.api_request(:post, url)
+      end
+
       private
+
+      def amounts_to_uri(amounts)
+        amounts.map {|v| "amounts[]=#{v.to_s}" }.join("&")
+      end
 
       def before_gateways(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
         super(kb_transaction, last_transaction, payment_source, amount_in_cents, currency, options, context)
@@ -216,7 +225,16 @@ module Killbill #:nodoc:
 
       def get_payment_source(kb_payment_method_id, properties, options, context)
         return nil if options[:customer_id]
-        super(kb_payment_method_id, properties, options, context)
+        if is_bank_account?(properties)
+          ActiveMerchant::Billing::StripeGateway::BankAccount.new({
+            :bank_name => find_value_from_properties(properties, :bank_name),
+            :routing_number => find_value_from_properties(properties, :routing_number),
+            :account_number => find_value_from_properties(properties, :account_number),
+            :type => find_value_from_properties(properties, :type) || "personal",
+          })
+        else
+          super(kb_payment_method_id, properties, options, context)
+        end
       end
 
       def populate_defaults(pm, amount, properties, context, options)
@@ -245,6 +263,11 @@ module Killbill #:nodoc:
         return (fees_percent * amount * 100).to_i unless fees_percent.nil?
 
         config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
+      end
+
+      def is_bank_account?(properties)
+        find_value_from_properties(properties, :routing_number) &&
+          find_value_from_properties(properties, :account_number)
       end
     end
   end

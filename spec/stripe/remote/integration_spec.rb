@@ -33,7 +33,7 @@ describe Killbill::Stripe::PaymentPlugin do
 
   it 'should be able to create and retrieve payment methods' do
     # Override default payment method params to make sure we store the data returned by Stripe (see https://github.com/killbill/killbill-stripe-plugin/issues/8)
-    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], { :cc_type => '', :cc_last_4 => '' })
+    pm = create_payment_method(::Killbill::Stripe::StripePaymentMethod, nil, @call_context.tenant_id, [], card_properties)
 
     pms = @plugin.get_payment_methods(pm.kb_account_id, false, [], @call_context)
     pms.size.should == 1
@@ -44,8 +44,6 @@ describe Killbill::Stripe::PaymentPlugin do
     pm_props[:ccFirstName].should == 'John'
     pm_props[:ccLastName].should == 'Doe'
     pm_props[:ccType].should == 'Visa'
-    pm_props[:ccExpirationMonth].should == '12'
-    pm_props[:ccExpirationYear].should == '2020'
     pm_props[:ccLast4].should == '4242'
     pm_props[:address1].should == '5, oakriu road'
     pm_props[:address2].should == 'apt. 298'
@@ -85,7 +83,7 @@ describe Killbill::Stripe::PaymentPlugin do
   end
 
   it 'should be able to charge a Credit Card directly' do
-    properties = build_pm_properties
+    properties = build_pm_properties(nil, { :token => @pm.token })
 
     # We created the payment methods, hence the rows
     nb_responses = Killbill::Stripe::StripeResponse.count
@@ -189,5 +187,59 @@ describe Killbill::Stripe::PaymentPlugin do
     payment_response = @plugin.void_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[2].id, @pm.kb_payment_method_id, @properties, @call_context)
     payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
     payment_response.transaction_type.should == :VOID
+  end
+
+  it 'should be able to add a bank account, verify and accept a bank charge' do
+    kb_account_id = SecureRandom.uuid
+    kb_payment_method_id = SecureRandom.uuid
+    create_kb_account(kb_account_id, @plugin.kb_apis.proxied_services[:account_user_api])
+    @plugin.kb_apis.account_user_api.get_account_by_id(kb_account_id, @plugin.kb_apis.create_context(@call_context.tenant_id))
+    pm = @plugin.add_payment_method(kb_account_id, kb_payment_method_id, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
+    pm.token.should be_kind_of(String)
+    pm.stripe_customer_id.should be_kind_of(String)
+    pm.bank_name.should eq("STRIPE TEST BANK")
+    pm.bank_routing_number.should eq("110000000")
+    pm.source_type.should eq("bank_account")
+
+    properties = [build_property(:token, pm.token)]
+    bad_kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
+
+    attempt_response = @plugin.purchase_payment(kb_account_id, bad_kb_payment.id, bad_kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    attempt_response.status.should eq(:ERROR), attempt_response.gateway_error
+
+    @plugin.verify_bank_account(pm.stripe_customer_id, pm.token, bank_account_verification_numbers, @call_context.tenant_id)
+
+    good_kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
+
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, good_kb_payment.id, good_kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+    payment_response.amount.should == @amount
+    payment_response.transaction_type.should == :PURCHASE
+  end
+
+  private
+
+  def bank_account_properties
+    info = Killbill::Plugin::Model::PaymentMethodPlugin.new
+    info.properties = {
+      :bank_name => "STRIPE TEST BANK",
+      :account_number => "000123456789",
+      :routing_number => "110000000",
+    }.map {|k,v| build_property(k, v)}
+    info
+  end
+
+  def bank_account_verification_numbers
+    [32, 45]
+  end
+
+  def card_properties
+    {
+      :token => 'tok_visa',
+      :cc_number => '',
+      :cc_exp_month => '',
+      :cc_exp_year => '',
+      :cc_verification_value => '',
+    }
   end
 end
