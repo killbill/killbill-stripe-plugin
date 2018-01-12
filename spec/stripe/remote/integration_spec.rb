@@ -202,14 +202,16 @@ describe Killbill::Stripe::PaymentPlugin do
     pm.source_type.should eq("bank_account")
 
     properties = [build_property(:token, pm.token)]
-    kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
+    bad_kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
 
-    attempt_response = @plugin.purchase_payment(kb_account_id, kb_payment.id, kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    attempt_response = @plugin.purchase_payment(kb_account_id, bad_kb_payment.id, bad_kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
     attempt_response.status.should eq(:ERROR), attempt_response.gateway_error
 
     @plugin.verify_bank_account(pm.stripe_customer_id, pm.token, bank_account_verification_numbers, @call_context.tenant_id)
 
-    payment_response = @plugin.purchase_payment(@pm.kb_account_id, kb_payment.id, kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
+    good_kb_payment = @plugin.kb_apis.proxied_services[:payment_api].add_payment(SecureRandom.uuid)
+
+    payment_response = @plugin.purchase_payment(@pm.kb_account_id, good_kb_payment.id, good_kb_payment.transactions[0].id, pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
     payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
     payment_response.amount.should == @amount
     payment_response.transaction_type.should == :PURCHASE

@@ -232,8 +232,6 @@ module Killbill #:nodoc:
             :account_number => find_value_from_properties(properties, :account_number),
             :type => find_value_from_properties(properties, :type) || "personal",
           })
-        elsif !options[:customer].blank?
-          options[:customer]
         else
           super(kb_payment_method_id, properties, options, context)
         end
