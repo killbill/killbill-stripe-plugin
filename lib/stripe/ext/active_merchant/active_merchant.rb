@@ -82,21 +82,19 @@ module ActiveMerchant
         end
 
         if post[:bank_account]
-          has_customer = false
           responses = MultiResponse.run do |r|
             # get token and associate it with the customer
             r.process { commit(:post, "tokens?#{post_data(post)}", nil, { bank_account: true }) }
 
             if r.success?
               if options[:customer]
-                has_customer = true
                 r.process { commit(:post, "customers/#{CGI.escape(options[:customer])}/sources", { source: r.params["id"] } ) }
               else
                 r.process { commit(:post, "customers", { source: r.params["id"] } ) }
               end
             end
           end.responses
-          if has_customer
+          if options[:customer]
             return responses.first
           else
             return responses.last
