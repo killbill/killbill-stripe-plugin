@@ -193,7 +193,7 @@ describe Killbill::Stripe::PaymentPlugin do
     kb_account_id = SecureRandom.uuid
     kb_payment_method_id = SecureRandom.uuid
     create_kb_account(kb_account_id, @plugin.kb_apis.proxied_services[:account_user_api])
-    account = @plugin.kb_apis.account_user_api.get_account_by_id(kb_account_id, @plugin.kb_apis.create_context(@call_context.tenant_id))
+    @plugin.kb_apis.account_user_api.get_account_by_id(kb_account_id, @plugin.kb_apis.create_context(@call_context.tenant_id))
     pm = @plugin.add_payment_method(kb_account_id, kb_payment_method_id, bank_account_properties, true, [], @plugin.kb_apis.create_context(@call_context.tenant_id))
     pm.token.should be_kind_of(String)
     pm.stripe_customer_id.should be_kind_of(String)
