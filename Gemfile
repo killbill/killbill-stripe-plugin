@@ -2,4 +2,4 @@ source 'https://rubygems.org'
 
 gemspec
 
-gem 'killbill', :github => 'killbill/killbill-plugin-framework-ruby'
+#gem 'killbill', :github => 'killbill/killbill-plugin-framework-ruby', :branch => 'work-for-release-0.19.x'
