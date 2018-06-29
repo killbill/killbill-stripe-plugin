@@ -24,6 +24,7 @@
 - org.apache.felix:org.apache.felix.framework:jar:4.4.1
 - org.kill-bill.billing:killbill-platform-osgi:jar:0.37.18
 - org.ehcache:ehcache-clustered:jar:3.3.1
+- org.bouncycastle:bcpkix-jdk15on:jar:1.56
 - com.google.code.findbugs:jsr305:jar:3.0.1
 - com.google.guava:guava:jar:20.0
 - com.samskivert:jmustache:jar:1.5
@@ -32,6 +33,7 @@
 - org.kill-bill.commons:killbill-locker:jar:0.21.14
 - javax.cache:cache-api:jar:1.0.0
 - org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4:jar:1.16
+- javax.servlet:javax.servlet-api:jar:4.0.0
 - org.kill-bill.commons:killbill-jdbi:jar:0.21.14
 - com.fasterxml.jackson.core:jackson-annotations:jar:2.6.7
 - org.kill-bill.billing:killbill-platform-api:jar:0.37.18
@@ -52,11 +54,11 @@
 - io.dropwizard.metrics:metrics-jcache:jar:3.2.2
 - com.fasterxml.jackson.datatype:jackson-datatype-joda:jar:2.6.7
 - com.google.inject.extensions:guice-multibindings:jar:3.0
+- org.bouncycastle:bcprov-jdk15on:jar:1.56
 - joda-time:joda-time:jar:2.9.9
 - javax.inject:javax.inject:jar:1
 - com.h2database:h2:jar:1.4.194
 - commons-beanutils:commons-beanutils:jar:1.8.3
-- javax.servlet:javax.servlet-api:jar:3.1.0
 - com.fasterxml.jackson.core:jackson-core:jar:2.6.7
 - cglib:cglib:jar:3.1
 - io.dropwizard.metrics:metrics-core:jar:3.2.2
