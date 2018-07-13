@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
 
   s.rdoc_options << '--exclude' << '.'
 
-  s.add_dependency 'killbill', '~> 9.3.0'
+  s.add_dependency 'killbill', '~> 9.4.0'
 
   s.add_dependency 'sinatra', '~> 1.3.4'
   s.add_dependency 'thread_safe', '~> 0.3.4'
