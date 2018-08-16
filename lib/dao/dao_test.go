@@ -18,19 +18,19 @@ package dao
 
 import (
 	pb "../payment"
-	u "../utils"
 	"testing"
 	"database/sql"
 	"github.com/stripe/stripe-go"
+	"github.com/gofrs/uuid"
 )
 
 func TestPaymentMethod(t *testing.T) {
-	kbAccountId := u.RandomUUID()
-	kbTenantId := u.RandomUUID()
+	kbAccountId := randomUUID()
+	kbTenantId := randomUUID()
 
 	request := pb.PaymentRequest{
 		KbAccountId:       kbAccountId,
-		KbPaymentMethodId: u.RandomUUID(),
+		KbPaymentMethodId: randomUUID(),
 		Amount:            "10",
 		Currency:          "USD",
 		Properties:        []*pb.PluginProperty{},
@@ -46,7 +46,7 @@ func TestPaymentMethod(t *testing.T) {
 	}
 	defer db.Close()
 
-	stripeId := u.RandomUUID()
+	stripeId := randomUUID()
 	id, err := saveStripeId(db, &request, stripeId)
 	if err != nil {
 		t.Errorf("Error should be nil: %s", err)
@@ -65,15 +65,15 @@ func TestPaymentMethod(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	kbAccountId := u.RandomUUID()
-	kbPaymentId := u.RandomUUID()
-	kbTenantId := u.RandomUUID()
+	kbAccountId := randomUUID()
+	kbPaymentId := randomUUID()
+	kbTenantId := randomUUID()
 
 	request := pb.PaymentRequest{
 		KbAccountId:       kbAccountId,
 		KbPaymentId:       kbPaymentId,
-		KbTransactionId:   u.RandomUUID(),
-		KbPaymentMethodId: u.RandomUUID(),
+		KbTransactionId:   randomUUID(),
+		KbPaymentMethodId: randomUUID(),
 		Amount:            "10",
 		Currency:          "USD",
 		Properties:        []*pb.PluginProperty{},
@@ -90,10 +90,10 @@ func TestTransaction(t *testing.T) {
 	defer db.Close()
 
 	id, err := saveTransaction(*db, request, pb.PaymentTransactionInfoPlugin_AUTHORIZE, stripe.Charge{
-		ID: u.RandomUUID(),
-		Amount: 1000,
+		ID:       randomUUID(),
+		Amount:   1000,
 		Currency: "USD",
-		Status: "succeeded",
+		Status:   "succeeded",
 	}, stripe.Error{})
 	if err != nil {
 		t.Errorf("Error should be nil: %s", err)
@@ -113,12 +113,12 @@ func TestTransaction(t *testing.T) {
 		t.Errorf("Wrong status: %s", payment[0].GetStatus)
 	}
 
-	request.KbTransactionId = u.RandomUUID()
+	request.KbTransactionId = randomUUID()
 	id, err = saveTransaction(*db, request, pb.PaymentTransactionInfoPlugin_CAPTURE, stripe.Charge{
-		ID: u.RandomUUID(),
-		Amount: 1000,
+		ID:       randomUUID(),
+		Amount:   1000,
 		Currency: "USD",
-		Status: "failed",
+		Status:   "failed",
 	}, stripe.Error{})
 	if err != nil {
 		t.Errorf("Error should be nil: %s", err)
@@ -137,4 +137,8 @@ func TestTransaction(t *testing.T) {
 	if payment[1].GetStatus != pb.PaymentTransactionInfoPlugin_ERROR {
 		t.Errorf("Wrong status: %s", payment[1].GetStatus)
 	}
+}
+
+func randomUUID() string {
+	return uuid.Must(uuid.NewV4()).String()
 }
