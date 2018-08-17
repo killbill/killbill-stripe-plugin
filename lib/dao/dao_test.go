@@ -17,128 +17,94 @@
 package dao
 
 import (
-	pb "../payment"
+	pbc "github.com/killbill/killbill-rpc/go/api/common"
+	pbp "github.com/killbill/killbill-rpc/go/api/plugin/payment"
+	kb "github.com/killbill/killbill-plugin-framework-go"
+
 	"testing"
 	"database/sql"
-	"github.com/stripe/stripe-go"
-	"github.com/gofrs/uuid"
+	"time"
 )
 
 func TestPaymentMethod(t *testing.T) {
-	kbAccountId := randomUUID()
-	kbTenantId := randomUUID()
-
-	request := pb.PaymentRequest{
-		KbAccountId:       kbAccountId,
-		KbPaymentMethodId: randomUUID(),
+	context := &pbc.CallContext{
+		AccountId: kb.RandomUUID(),
+		TenantId:  kb.RandomUUID(),
+	}
+	request := pbp.PaymentRequest{
+		KbAccountId:       context.GetAccountId(),
+		KbPaymentId:       kb.RandomUUID(),
+		KbTransactionId:   kb.RandomUUID(),
+		KbPaymentMethodId: kb.RandomUUID(),
 		Amount:            "10",
 		Currency:          "USD",
-		Properties:        []*pb.PluginProperty{},
-		Context: &pb.CallContext{
-			AccountId: kbAccountId,
-			TenantId:  kbTenantId,
-		},
+		Properties:        []*pbp.PluginProperty{},
+		Context:           context,
 	}
 
 	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
-	if err != nil {
-		panic(err)
-	}
+	kb.AssertOk(t, err)
 	defer db.Close()
 
-	stripeId := randomUUID()
-	id, err := saveStripeId(db, &request, stripeId)
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
+	stripeSourceInput := StripeSource{
+		ID:         1,
+		StripeId:   kb.RandomUUID(),
+		CustomerId: kb.RandomUUID(),
+		CreatedAt:  time.Now().In(time.UTC),
 	}
-	if id <= 0 {
-		t.Errorf("auto_increment should be positive: %d", id)
-	}
+	err = SaveStripeSource(*db, request, &stripeSourceInput)
+	kb.AssertOk(t, err)
 
-	foundToken, err := getStripeId(db, &request)
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
-	}
-	if foundToken != stripeId {
-		t.Errorf("Wrong stripeId found: %s", foundToken)
-	}
+	stripeSource, err := GetStripeSource(*db, request)
+	kb.AssertOk(t, err)
+	kb.AssertEquals(t, stripeSourceInput.StripeId, stripeSource.StripeId)
+	kb.AssertEquals(t, stripeSourceInput.CustomerId, stripeSource.CustomerId)
 }
 
 func TestTransaction(t *testing.T) {
-	kbAccountId := randomUUID()
-	kbPaymentId := randomUUID()
-	kbTenantId := randomUUID()
-
-	request := pb.PaymentRequest{
-		KbAccountId:       kbAccountId,
-		KbPaymentId:       kbPaymentId,
-		KbTransactionId:   randomUUID(),
-		KbPaymentMethodId: randomUUID(),
+	context := &pbc.CallContext{
+		AccountId: kb.RandomUUID(),
+		TenantId:  kb.RandomUUID(),
+	}
+	request := pbp.PaymentRequest{
+		KbAccountId:       context.GetAccountId(),
+		KbPaymentId:       kb.RandomUUID(),
+		KbTransactionId:   kb.RandomUUID(),
+		KbPaymentMethodId: kb.RandomUUID(),
 		Amount:            "10",
 		Currency:          "USD",
-		Properties:        []*pb.PluginProperty{},
-		Context: &pb.CallContext{
-			AccountId: kbAccountId,
-			TenantId:  kbTenantId,
-		},
+		Properties:        []*pbp.PluginProperty{},
+		Context:           context,
 	}
 
 	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
-	if err != nil {
-		panic(err)
-	}
+	kb.AssertOk(t, err)
 	defer db.Close()
 
-	id, err := saveTransaction(*db, request, pb.PaymentTransactionInfoPlugin_AUTHORIZE, stripe.Charge{
-		ID:       randomUUID(),
+	err = SaveTransaction(*db, request, pbp.PaymentTransactionInfoPlugin_AUTHORIZE, &StripeResponse{
+		StripeId: kb.RandomUUID(),
 		Amount:   1000,
 		Currency: "USD",
 		Status:   "succeeded",
-	}, stripe.Error{})
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
-	}
-	if id <= 0 {
-		t.Errorf("auto_increment should be positive: %d", id)
-	}
+	}, nil)
+	kb.AssertOk(t, err)
 
-	payment, err := getTransactions(*db, request)
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
-	}
-	if len(payment) != 1 {
-		t.Errorf("Wrong number of tx found")
-	}
-	if payment[0].GetStatus != pb.PaymentTransactionInfoPlugin_PROCESSED {
-		t.Errorf("Wrong status: %s", payment[0].GetStatus)
-	}
+	payment, err := GetTransactions(*db, request)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(payment) == 1, "Wrong number of tx found")
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, payment[0].GetStatus)
 
-	request.KbTransactionId = randomUUID()
-	id, err = saveTransaction(*db, request, pb.PaymentTransactionInfoPlugin_CAPTURE, stripe.Charge{
-		ID:       randomUUID(),
+	request.KbTransactionId = kb.RandomUUID()
+	err = SaveTransaction(*db, request, pbp.PaymentTransactionInfoPlugin_CAPTURE, &StripeResponse{
+		StripeId: kb.RandomUUID(),
 		Amount:   1000,
 		Currency: "USD",
 		Status:   "failed",
-	}, stripe.Error{})
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
-	}
-	if id <= 0 {
-		t.Errorf("auto_increment should be positive: %d", id)
-	}
+	}, nil)
+	kb.AssertOk(t, err)
 
-	payment, err = getTransactions(*db, request)
-	if err != nil {
-		t.Errorf("Error should be nil: %s", err)
-	}
-	if len(payment) != 2 {
-		t.Errorf("Wrong number of tx found")
-	}
-	if payment[1].GetStatus != pb.PaymentTransactionInfoPlugin_ERROR {
-		t.Errorf("Wrong status: %s", payment[1].GetStatus)
-	}
-}
-
-func randomUUID() string {
-	return uuid.Must(uuid.NewV4()).String()
+	payment, err = GetTransactions(*db, request)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(payment) == 2, "Wrong number of tx found")
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_ERROR, payment[1].GetStatus)
 }

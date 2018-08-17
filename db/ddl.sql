@@ -1,7 +1,8 @@
 CREATE TABLE stripe_payment_methods (
   id serial unique,
   kb_payment_method_id varchar(255) NOT NULL,
-  stripe_id varchar(255) NOT NULL,
+  stripe_id varchar(255) DEFAULT NULL,
+  stripe_customer_id varchar(255) DEFAULT NULL,
   is_deleted boolean NOT NULL DEFAULT '0',
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
