@@ -14,4 +14,4 @@
  * under the License.
  */
 
-package stripe
+package api
