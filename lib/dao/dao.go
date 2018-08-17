@@ -88,7 +88,7 @@ type StripeResponse struct {
 func SaveTransaction(db sql.DB, req pbp.PaymentRequest, txType pbp.PaymentTransactionInfoPlugin_TransactionType, stripeResponse *StripeResponse, chErr error) (error) {
 	now := time.Now().In(time.UTC).Format("2006-01-02T15:04:05") // TODO KB Clock
 
-	stripeId := stripeResponse.ID
+	stripeId := stripeResponse.StripeId
 	stripeAmount := stripeResponse.Amount
 	stripeCurrency := stripeResponse.Currency
 	stripeStatus := stripeResponse.Status

@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stripe/stripe-go/refund"
 	"time"
+	"github.com/stripe/stripe-go/card"
 )
 
 var (
@@ -68,9 +69,9 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 	} else {
 		capture := transactionType == pbp.PaymentTransactionInfoPlugin_PURCHASE
 		i, _ := strconv.ParseInt(req.Amount, 10, 64) // TODO Joda-Money?
+		i = i * 100
 
 		chargeParams := &stripe.ChargeParams{
-			Params:         stripe.Params{},
 			Amount:         &i,
 			ApplicationFee: nil,
 			Capture:        &capture,
@@ -216,13 +217,24 @@ func (m *PaymentPluginApiServer) GetPaymentInfo(ctx context.Context, req *pbp.Pa
 }
 
 func (m *PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
+	stripeCustomerId := kb.FindPluginProperty2(req.GetProperties(), "stripeCustomerId")
+	stripeToken := kb.FindPluginProperty2(req.GetProperties(), "stripeToken")
+	params := &stripe.CardParams{
+		Customer: &stripeCustomerId,
+		Token:    &stripeToken,
+	}
+	c, err := card.New(params)
+	if err != nil {
+		return nil, err
+	}
+
 	stripeSource := dao.StripeSource{
-		StripeId:   kb.FindPluginProperty2(req.GetProperties(), "stripeId"),
-		CustomerId: kb.FindPluginProperty2(req.GetProperties(), "stripeCustomerId"),
+		StripeId:   c.ID,
+		CustomerId: stripeCustomerId,
 		CreatedAt:  time.Now().In(time.UTC), // TODO update customer in stripe instead and use source id created date
 	}
 
-	err := dao.SaveStripeSource(*db, *req, &stripeSource)
+	err = dao.SaveStripeSource(*db, *req, &stripeSource)
 	if err != nil {
 		return nil, err
 	}
