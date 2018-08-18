@@ -24,7 +24,18 @@ import (
 	"testing"
 	"os"
 	"github.com/stripe/stripe-go"
+	"google.golang.org/grpc"
 )
+
+type MockPaymentPluginApi_GetPaymentInfoServer struct {
+	tx []pbp.PaymentTransactionInfoPlugin
+	grpc.ServerStream
+}
+
+func (m *MockPaymentPluginApi_GetPaymentInfoServer) Send(res *pbp.PaymentTransactionInfoPlugin) error {
+	m.tx = append(m.tx, *res)
+	return nil
+}
 
 func TestAuthCaptureRefund(t *testing.T) {
 	stripe.LogLevel = 3
@@ -66,8 +77,10 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_AUTHORIZE, paymentTransactionInfoPlugin.GetTransactionType())
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
 
-	paymentInfoPlugin, err := server.GetPaymentInfo(nil, &request)
-	kb.Assert(t, len(paymentInfoPlugin) == 1, "Wrong number of tx")
+	mockServer := &MockPaymentPluginApi_GetPaymentInfoServer{}
+	err = server.GetPaymentInfo(&request, mockServer)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(mockServer.tx) == 1, "Wrong number of tx")
 
 	request.KbTransactionId = kb.RandomUUID()
 	paymentTransactionInfoPlugin, err = server.CapturePayment(nil, &request)
@@ -75,8 +88,10 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_CAPTURE, paymentTransactionInfoPlugin.GetTransactionType())
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
 
-	paymentInfoPlugin, err = server.GetPaymentInfo(nil, &request)
-	kb.Assert(t, len(paymentInfoPlugin) == 2, "Wrong number of tx")
+	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
+	err = server.GetPaymentInfo(&request, mockServer)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(mockServer.tx) == 2, "Wrong number of tx")
 
 	request.KbTransactionId = kb.RandomUUID()
 	paymentTransactionInfoPlugin, err = server.RefundPayment(nil, &request)
@@ -84,6 +99,8 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_REFUND, paymentTransactionInfoPlugin.GetTransactionType())
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
 
-	paymentInfoPlugin, err = server.GetPaymentInfo(nil, &request)
-	kb.Assert(t, len(paymentInfoPlugin) == 3, "Wrong number of tx")
+	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
+	err = server.GetPaymentInfo(&request, mockServer)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(mockServer.tx) == 3, "Wrong number of tx")
 }

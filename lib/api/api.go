@@ -30,6 +30,7 @@ import (
 	"github.com/stripe/stripe-go/refund"
 	"time"
 	"github.com/stripe/stripe-go/card"
+	"strings"
 )
 
 var (
@@ -49,11 +50,11 @@ func init() {
 
 type PaymentPluginApiServer struct{}
 
-func (m *PaymentPluginApiServer) AuthorizePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) AuthorizePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return stripeCharge(req, pbp.PaymentTransactionInfoPlugin_AUTHORIZE)
 }
 
-func (m *PaymentPluginApiServer) PurchasePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) PurchasePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return stripeCharge(req, pbp.PaymentTransactionInfoPlugin_PURCHASE)
 }
 
@@ -116,7 +117,7 @@ func toKbPaymentPluginStatus(stripeStatus string, chErr error) pbp.PaymentTransa
 	return kbStatus
 }
 
-func (m *PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	var ch *stripe.Charge
 	var err error
 
@@ -144,7 +145,7 @@ func (m *PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.Pa
 	return buildPaymentTransactionInfoPlugin(req, pbp.PaymentTransactionInfoPlugin_CAPTURE, stripeResponse, err), err
 }
 
-func (m *PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	var ref *stripe.Refund
 	var err error
 
@@ -180,7 +181,7 @@ func buildPaymentTransactionInfoPlugin(req *pbp.PaymentRequest, txType pbp.Payme
 		KbTransactionPaymentId:  req.GetKbTransactionId(),
 		TransactionType:         txType,
 		Amount:                  strconv.FormatInt(stripeResponse.Amount*100, 10), // TODO Joda-Money?
-		Currency:                stripeResponse.Currency,
+		Currency:                strings.ToUpper(stripeResponse.Currency),
 		CreatedDate:             stripeResponse.CreatedAt.Format(time.RFC3339),
 		EffectiveDate:           stripeResponse.CreatedAt.Format(time.RFC3339),
 		GetStatus:               toKbPaymentPluginStatus(stripeResponse.Status, chErr),
@@ -190,11 +191,11 @@ func buildPaymentTransactionInfoPlugin(req *pbp.PaymentRequest, txType pbp.Payme
 	}
 }
 
-func (m *PaymentPluginApiServer) VoidPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) VoidPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return unsupportedOperation(req, pbp.PaymentTransactionInfoPlugin_VOID)
 }
 
-func (m *PaymentPluginApiServer) CreditPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
+func (m PaymentPluginApiServer) CreditPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return unsupportedOperation(req, pbp.PaymentTransactionInfoPlugin_CREDIT)
 }
 
@@ -212,11 +213,20 @@ func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTr
 	return buildPaymentTransactionInfoPlugin(req, transactionType, stripeResponse, paymentErr), paymentErr
 }
 
-func (m *PaymentPluginApiServer) GetPaymentInfo(ctx context.Context, req *pbp.PaymentRequest) ([]pbp.PaymentTransactionInfoPlugin, error) {
-	return dao.GetTransactions(*db, *req)
+func (m PaymentPluginApiServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.PaymentPluginApi_GetPaymentInfoServer) (error) {
+	res, err := dao.GetTransactions(*db, *req)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range res {
+		s.Send(&e)
+	}
+
+	return nil
 }
 
-func (m *PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
+func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
 	stripeCustomerId := kb.FindPluginProperty2(req.GetProperties(), "stripeCustomerId")
 	stripeToken := kb.FindPluginProperty2(req.GetProperties(), "stripeToken")
 	params := &stripe.CardParams{
@@ -242,7 +252,7 @@ func (m *PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.
 	return buildPaymentMethodPlugin(req, stripeSource), nil
 }
 
-func (m *PaymentPluginApiServer) GetPaymentMethodDetail(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
+func (m PaymentPluginApiServer) GetPaymentMethodDetail(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
 	stripeSource, err := dao.GetStripeSource(*db, *req)
 	if err != nil {
 		return nil, err
