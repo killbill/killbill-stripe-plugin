@@ -19,6 +19,7 @@ package main
 import (
 	pbr "github.com/killbill/killbill-rpc/go/api/killbill/registration"
 	pbp "github.com/killbill/killbill-rpc/go/api/plugin/payment"
+	pbl "github.com/killbill/killbill-rpc/go/api/plugin/lifecycle"
 
 	"./api"
 
@@ -32,6 +33,31 @@ import (
 	"time"
 	"google.golang.org/grpc"
 )
+
+type lifecyclePluginApiServer struct {
+}
+
+func (lifecyclePluginApiServer) Start(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
+	resp := &pbl.LifecycleResponse{
+		Success: true,
+		Err:     "",
+	}
+
+	glog.Info("Stripe plugin started")
+
+	return resp, nil
+}
+
+func (lifecyclePluginApiServer) Stop(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
+	resp := &pbl.LifecycleResponse{
+		Success: true,
+		Err:     "",
+	}
+
+	glog.Info("Stripe plugin stopped")
+
+	return resp, nil
+}
 
 func startRPCServer(network, address string, serverStarted, exit chan interface{}) {
 	var signal interface{}
@@ -47,6 +73,7 @@ func startRPCServer(network, address string, serverStarted, exit chan interface{
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	pbp.RegisterPaymentPluginApiServer(grpcServer, api.PaymentPluginApiServer{})
+	pbl.RegisterLifecyclePluginApiServer(grpcServer, lifecyclePluginApiServer{})
 
 	// Best we can do but technically there is a small race condition
 	serverStarted <- signal
@@ -91,6 +118,13 @@ func registerPlugin(network, address, killbillAddr string, serverStarted chan in
 	}
 }
 
+type glogBridge struct {
+}
+
+func (m *glogBridge) Printf(format string, v ...interface{}) {
+	glog.Infof(format, v...)
+}
+
 func main() {
 	networkPtr := flag.String("network", "tcp4", "Network to use for server: tcp, tcp4, tcp6, unix or unixpacket")
 	addressPtr := flag.String("address", "localhost:50051", "Address to bind to")
@@ -103,6 +137,10 @@ func main() {
 	} else {
 		stripe.Key = *apiSecretKeyPtr
 	}
+
+	// TODO it doesn't look like glog exports this?
+	stripe.LogLevel = 3
+	stripe.Logger = &glogBridge{}
 
 	serverStarted := make(chan interface{})
 	exit := make(chan interface{})

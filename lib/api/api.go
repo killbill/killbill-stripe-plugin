@@ -31,6 +31,7 @@ import (
 	"time"
 	"github.com/stripe/stripe-go/card"
 	"strings"
+	"github.com/stripe/stripe-go/customer"
 )
 
 var (
@@ -69,11 +70,12 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 		}
 	} else {
 		capture := transactionType == pbp.PaymentTransactionInfoPlugin_PURCHASE
-		i, _ := strconv.ParseInt(req.Amount, 10, 64) // TODO Joda-Money?
+		i, _ := strconv.ParseFloat(req.Amount, 32) // TODO Joda-Money?
 		i = i * 100
+		cents := int64(i)
 
 		chargeParams := &stripe.ChargeParams{
-			Amount:         &i,
+			Amount:         &cents,
 			ApplicationFee: nil,
 			Capture:        &capture,
 			Currency:       &req.Currency,
@@ -227,8 +229,27 @@ func (m PaymentPluginApiServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.Pa
 }
 
 func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
-	stripeCustomerId := kb.FindPluginProperty2(req.GetProperties(), "stripeCustomerId")
 	stripeToken := kb.FindPluginProperty2(req.GetProperties(), "stripeToken")
+	if stripeToken == "" {
+		// Backward compatibility
+		stripeToken = kb.FindPluginProperty2(req.GetProperties(), "token")
+	}
+
+	stripeCustomerId := kb.FindPluginProperty2(req.GetProperties(), "stripeCustomerId")
+	if stripeCustomerId == "" {
+		// TODO Retrieve it from a previous tx first
+
+		// Create the Stripe customer
+		params := &stripe.CustomerParams{
+			Description: stripe.String(req.GetKbAccountId()),
+		}
+		cus, err := customer.New(params)
+		if err != nil {
+			return nil, err
+		}
+		stripeCustomerId = cus.ID
+	}
+
 	params := &stripe.CardParams{
 		Customer: &stripeCustomerId,
 		Token:    &stripeToken,
@@ -241,9 +262,8 @@ func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 	stripeSource := dao.StripeSource{
 		StripeId:   c.ID,
 		CustomerId: stripeCustomerId,
-		CreatedAt:  time.Now().In(time.UTC), // TODO update customer in stripe instead and use source id created date
+		CreatedAt:  time.Now().In(time.UTC), // TODO KB clock
 	}
-
 	err = dao.SaveStripeSource(*db, *req, &stripeSource)
 	if err != nil {
 		return nil, err
