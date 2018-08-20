@@ -26,7 +26,16 @@ import (
 	"time"
 )
 
-func TestPaymentMethod(t *testing.T) {
+func buildStripeDB(t *testing.T) StripeDB {
+	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
+	kb.AssertOk(t, err)
+
+	return StripeDB{
+		DB: db,
+	}
+}
+
+func buildPaymentRequest() pbp.PaymentRequest {
 	context := &pbc.CallContext{
 		AccountId: kb.RandomUUID(),
 		TenantId:  kb.RandomUUID(),
@@ -41,70 +50,73 @@ func TestPaymentMethod(t *testing.T) {
 		Properties:        []*pbp.PluginProperty{},
 		Context:           context,
 	}
+	return request
+}
 
-	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
-	kb.AssertOk(t, err)
+func TestPaymentMethod(t *testing.T) {
+	db := buildStripeDB(t)
 	defer db.Close()
 
+	request := buildPaymentRequest()
+
 	stripeSourceInput := StripeSource{
-		ID:         1,
-		StripeId:   kb.RandomUUID(),
-		CustomerId: kb.RandomUUID(),
-		CreatedAt:  time.Now().In(time.UTC),
+		StripeObject: StripeObject{
+			CreatedAt:   time.Now().In(time.UTC),
+			KBAccountId: request.GetKbAccountId(),
+			KBTenantId:  request.GetContext().GetTenantId(),
+		},
+		KbPaymentMethodId: request.GetKbPaymentMethodId(),
+		StripeId:          kb.RandomUUID(),
+		StripeCustomerId:  kb.RandomUUID(),
 	}
-	err = SaveStripeSource(*db, request, &stripeSourceInput)
+	err := db.SaveStripeSource(&stripeSourceInput)
 	kb.AssertOk(t, err)
 
-	stripeSource, err := GetStripeSource(*db, request)
+	stripeSource, err := db.GetStripeSource(request)
 	kb.AssertOk(t, err)
 	kb.AssertEquals(t, stripeSourceInput.StripeId, stripeSource.StripeId)
-	kb.AssertEquals(t, stripeSourceInput.CustomerId, stripeSource.CustomerId)
+	kb.AssertEquals(t, stripeSourceInput.StripeCustomerId, stripeSource.StripeCustomerId)
 }
 
 func TestTransaction(t *testing.T) {
-	context := &pbc.CallContext{
-		AccountId: kb.RandomUUID(),
-		TenantId:  kb.RandomUUID(),
-	}
-	request := pbp.PaymentRequest{
-		KbAccountId:       context.GetAccountId(),
-		KbPaymentId:       kb.RandomUUID(),
-		KbTransactionId:   kb.RandomUUID(),
-		KbPaymentMethodId: kb.RandomUUID(),
-		Amount:            "10",
-		Currency:          "USD",
-		Properties:        []*pbp.PluginProperty{},
-		Context:           context,
-	}
-
-	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
-	kb.AssertOk(t, err)
+	db := buildStripeDB(t)
 	defer db.Close()
 
-	err = SaveTransaction(*db, request, pbp.PaymentTransactionInfoPlugin_AUTHORIZE, &StripeResponse{
-		StripeId: kb.RandomUUID(),
-		Amount:   1000,
-		Currency: "USD",
-		Status:   "succeeded",
-	}, nil)
+	request := buildPaymentRequest()
+
+	stripeTransactionInput := StripeTransaction{
+		StripeObject: StripeObject{
+			KBAccountId: request.GetKbAccountId(),
+			KBTenantId:  request.GetContext().GetTenantId(),
+		},
+		KbPaymentId:            request.GetKbPaymentId(),
+		KbPaymentTransactionId: request.GetKbTransactionId(),
+		KbTransactionType:      "AUTHORIZE",
+		StripeId:               kb.RandomUUID(),
+		StripeAmount:           1000,
+		StripeCurrency:         "USD",
+		StripeStatus:           "succeeded",
+	}
+	err := db.SaveTransaction(&stripeTransactionInput)
 	kb.AssertOk(t, err)
 
-	payment, err := GetTransactions(*db, request)
+	payment, err := db.GetTransactions(request)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(payment) == 1, "Wrong number of tx found")
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, payment[0].GetStatus)
+	kb.AssertEquals(t, "succeeded", payment[0].StripeStatus)
+	kb.AssertEquals(t, request.GetKbTransactionId(), payment[0].KbPaymentTransactionId)
 
 	request.KbTransactionId = kb.RandomUUID()
-	err = SaveTransaction(*db, request, pbp.PaymentTransactionInfoPlugin_CAPTURE, &StripeResponse{
-		StripeId: kb.RandomUUID(),
-		Amount:   1000,
-		Currency: "USD",
-		Status:   "failed",
-	}, nil)
+	stripeTransactionInput.KbPaymentTransactionId = request.KbTransactionId
+	stripeTransactionInput.StripeStatus = "failed"
+	stripeTransactionInput.StripeId = kb.RandomUUID()
+	err = db.SaveTransaction(&stripeTransactionInput)
 	kb.AssertOk(t, err)
 
-	payment, err = GetTransactions(*db, request)
+	payment, err = db.GetTransactions(request)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(payment) == 2, "Wrong number of tx found")
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_ERROR, payment[1].GetStatus)
+	kb.AssertEquals(t, "failed", payment[1].StripeStatus)
+	kb.AssertEquals(t, request.GetKbTransactionId(), payment[1].KbPaymentTransactionId)
+	kb.Assert(t, payment[1].KbPaymentTransactionId != payment[0].KbPaymentTransactionId, "KbPaymentTransactionId should be different")
 }

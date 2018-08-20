@@ -18,24 +18,47 @@ package dao
 
 import (
 	pbp "github.com/killbill/killbill-rpc/go/api/plugin/payment"
-	kb "github.com/killbill/killbill-plugin-framework-go"
-
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"time"
+	"strconv"
 )
 
-type StripeSource struct {
-	ID         int64
-	StripeId   string
-	CustomerId string
-	CreatedAt  time.Time
+type StripeDB struct {
+	*sql.DB
 }
 
-func SaveStripeSource(db sql.DB, req pbp.PaymentRequest, stripeSource *StripeSource) (error) {
-	now := stripeSource.CreatedAt.Format("2006-01-02T15:04:05") // TODO KB Clock
+type StripeObject struct {
+	ID          int64
+	CreatedAt   time.Time
+	KBAccountId string
+	KBTenantId  string
+}
 
-	resp, err := db.Exec("insert into stripe_payment_methods (kb_payment_method_id, stripe_id, stripe_customer_id, kb_account_id, kb_tenant_id, created_at, updated_at) values (?,?,?,?,?,?,?)", req.GetKbPaymentMethodId(), stripeSource.StripeId, stripeSource.CustomerId, req.GetKbAccountId(), req.GetContext().GetTenantId(), now, now)
+type StripeSource struct {
+	StripeObject
+	KbPaymentMethodId string
+	StripeId          string
+	StripeCustomerId  string
+}
+
+type StripeTransaction struct {
+	StripeObject
+	KbPaymentId            string
+	KbPaymentTransactionId string
+	KbTransactionType      string
+	StripeId               string
+	StripeAmount           int64 // In cents
+	StripeCurrency         string
+	StripeStatus           string
+	StripeError            string
+}
+
+func (db *StripeDB) SaveStripeSource(stripeSource *StripeSource) (error) {
+	now := stripeSource.CreatedAt.Format("2006-01-02T15:04:05")
+
+	resp, err := db.Exec("insert into stripe_payment_methods (kb_payment_method_id, stripe_id, stripe_customer_id, kb_account_id, kb_tenant_id, created_at, updated_at) values (?,?,?,?,?,?,?)",
+		stripeSource.KbPaymentMethodId, stripeSource.StripeId, stripeSource.StripeCustomerId, stripeSource.KBAccountId, stripeSource.KBTenantId, now, now)
 	if err != nil {
 		return err
 	}
@@ -50,54 +73,44 @@ func SaveStripeSource(db sql.DB, req pbp.PaymentRequest, stripeSource *StripeSou
 	return nil
 }
 
-func GetStripeSource(db sql.DB, req pbp.PaymentRequest) (*StripeSource, error) {
+func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error) {
 	var id int64
 	var stripeId, stripeCustomerId, createdAtStr string
 
 	getStripeIdStatement, err := db.Prepare("select id, stripe_id, stripe_customer_id, created_at from stripe_payment_methods where !is_deleted and kb_payment_method_id = ? and kb_account_id = ? and kb_tenant_id = ? limit 1")
 	if err != nil {
-		return nil, err
+		return StripeSource{}, err
 	}
 	defer getStripeIdStatement.Close()
 
 	err = getStripeIdStatement.QueryRow(req.GetKbPaymentMethodId(), req.GetKbAccountId(), req.GetContext().GetTenantId()).Scan(&id, &stripeId, &stripeCustomerId, &createdAtStr)
 	if err != nil {
-		return nil, err
+		return StripeSource{}, err
 	}
 
-	createdAt, _ := time.Parse("2006-01-02T15:04:05", createdAtStr)
+	createdAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr)
+	if err != nil {
+		return StripeSource{}, err
+	}
 
-	return &StripeSource{
-		ID:         id,
-		StripeId:   stripeId,
-		CustomerId: stripeCustomerId,
-		CreatedAt:  createdAt,
+	return StripeSource{
+		StripeObject: StripeObject{
+			ID:          id,
+			CreatedAt:   createdAt,
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentMethodId: req.KbPaymentMethodId,
+		StripeId:          stripeId,
+		StripeCustomerId:  stripeCustomerId,
 	}, nil
 }
 
-type StripeResponse struct {
-	ID        int64
-	StripeId  string
-	Amount    int64
-	Currency  string
-	Status    string
-	Error     string
-	CreatedAt time.Time
-}
+func (db *StripeDB) SaveTransaction(stripeTransaction *StripeTransaction) (error) {
+	now := time.Now().In(time.UTC).Format("2006-01-02T15:04:05")
 
-func SaveTransaction(db sql.DB, req pbp.PaymentRequest, txType pbp.PaymentTransactionInfoPlugin_TransactionType, stripeResponse *StripeResponse, chErr error) (error) {
-	now := time.Now().In(time.UTC).Format("2006-01-02T15:04:05") // TODO KB Clock
-
-	stripeId := stripeResponse.StripeId
-	stripeAmount := stripeResponse.Amount
-	stripeCurrency := stripeResponse.Currency
-	stripeStatus := stripeResponse.Status
-	stripeError := ""
-	if chErr != nil {
-		stripeError = chErr.Error()
-	}
-
-	resp, err := db.Exec("insert into stripe_transactions (kb_payment_id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, kb_account_id, kb_tenant_id, created_at) values (?,?,?,?,?,?,?,?,?,?,?)", req.GetKbPaymentId(), req.GetKbTransactionId(), txType.String(), stripeId, stripeAmount, stripeCurrency, stripeStatus, stripeError, req.GetKbAccountId(), req.GetContext().GetTenantId(), now)
+	resp, err := db.Exec("insert into stripe_transactions (kb_payment_id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, kb_account_id, kb_tenant_id, created_at) values (?,?,?,?,?,?,?,?,?,?,?)",
+		stripeTransaction.KbPaymentId, stripeTransaction.KbPaymentTransactionId, stripeTransaction.KbTransactionType, stripeTransaction.StripeId, stripeTransaction.StripeAmount, stripeTransaction.StripeCurrency, stripeTransaction.StripeStatus, stripeTransaction.StripeError, stripeTransaction.KBAccountId, stripeTransaction.KBTenantId, now)
 	if err != nil {
 		return err
 	}
@@ -107,36 +120,58 @@ func SaveTransaction(db sql.DB, req pbp.PaymentRequest, txType pbp.PaymentTransa
 		return err
 	}
 
-	stripeResponse.ID = lastInsertId
+	stripeTransaction.ID = lastInsertId
 
 	return nil
 }
 
-func GetTransactions(db sql.DB, req pbp.PaymentRequest) ([]pbp.PaymentTransactionInfoPlugin, error) {
-	rows, err := db.Query("select kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, created_at from stripe_transactions where kb_payment_id = ? and kb_account_id = ? and kb_tenant_id = ?", req.GetKbPaymentId(), req.GetKbAccountId(), req.GetContext().GetTenantId())
+func (db *StripeDB) GetTransactions(req pbp.PaymentRequest) ([]StripeTransaction, error) {
+	rows, err := db.Query("select id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, created_at from stripe_transactions where kb_payment_id = ? and kb_account_id = ? and kb_tenant_id = ?", req.GetKbPaymentId(), req.GetKbAccountId(), req.GetContext().GetTenantId())
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var tx []pbp.PaymentTransactionInfoPlugin
+	var tx []StripeTransaction
 	for rows.Next() {
+		var id int64
 		var kbPaymentTransactionId string
 		var kbTransactionType string
 		var stripeId string
-		var stripeAmount string
+		var stripeAmountStr string
 		var stripeCurrency string
 		var stripeStatus string
 		var stripeError string
-		var createdAt string
-		err = rows.Scan(&kbPaymentTransactionId, &kbTransactionType, &stripeId, &stripeAmount, &stripeCurrency, &stripeStatus, &stripeError, &createdAt)
+		var createdAtStr string
+		err = rows.Scan(&id, &kbPaymentTransactionId, &kbTransactionType, &stripeId, &stripeAmountStr, &stripeCurrency, &stripeStatus, &stripeError, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
 
-		kbStatus := toKbPaymentPluginStatus(stripeStatus, nil)
-
-		tx = append(tx, buildPaymentTransactionInfoPlugin(req, kbPaymentTransactionId, kbTransactionType, stripeAmount, stripeCurrency, createdAt, kbStatus, stripeError, stripeId))
+		stripeAmount, err := strconv.ParseInt(stripeAmountStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		createdAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr)
+		if err != nil {
+			return nil, err
+		}
+		tx = append(tx, StripeTransaction{
+			StripeObject: StripeObject{
+				ID:          id,
+				CreatedAt:   createdAt,
+				KBAccountId: req.GetKbAccountId(),
+				KBTenantId:  req.GetKbAccountId(),
+			},
+			KbPaymentId:            req.GetKbPaymentId(),
+			KbPaymentTransactionId: kbPaymentTransactionId,
+			KbTransactionType:      kbTransactionType,
+			StripeId:               stripeId,
+			StripeAmount:           stripeAmount,
+			StripeCurrency:         stripeCurrency,
+			StripeStatus:           stripeStatus,
+			StripeError:            stripeError,
+		})
 	}
 	err = rows.Err()
 	if err != nil {
@@ -144,39 +179,4 @@ func GetTransactions(db sql.DB, req pbp.PaymentRequest) ([]pbp.PaymentTransactio
 	}
 
 	return tx, nil
-}
-
-func buildPaymentTransactionInfoPlugin(req pbp.PaymentRequest, kbPaymentTransactionId string, kbTransactionType string, stripeAmount string, stripeCurrency string, createdAt string, kbStatus pbp.PaymentTransactionInfoPlugin_PaymentPluginStatus, stripeError string, stripeId string) pbp.PaymentTransactionInfoPlugin {
-	return pbp.PaymentTransactionInfoPlugin{
-		KbPaymentId:             req.GetKbPaymentId(),
-		KbTransactionPaymentId:  kbPaymentTransactionId,
-		TransactionType:         kb.ToKbTransactionType(kbTransactionType),
-		Amount:                  stripeAmount, // TODO Joda-Money?
-		Currency:                stripeCurrency,
-		CreatedDate:             createdAt,
-		EffectiveDate:           createdAt,
-		GetStatus:               kbStatus,
-		GatewayError:            stripeError,
-		GatewayErrorCode:        "",
-		FirstPaymentReferenceId: stripeId,
-	}
-}
-
-// TODO DUP
-func toKbPaymentPluginStatus(stripeStatus string, chErr error) pbp.PaymentTransactionInfoPlugin_PaymentPluginStatus {
-	if chErr != nil {
-		return pbp.PaymentTransactionInfoPlugin_CANCELED
-	}
-
-	kbStatus := pbp.PaymentTransactionInfoPlugin_UNDEFINED
-	if stripeStatus == "succeeded" {
-		kbStatus = pbp.PaymentTransactionInfoPlugin_PROCESSED
-	} else if stripeStatus == "pending" {
-		kbStatus = pbp.PaymentTransactionInfoPlugin_PENDING
-	} else if stripeStatus == "failed" {
-		kbStatus = pbp.PaymentTransactionInfoPlugin_ERROR
-	} else if stripeStatus == "canceled" {
-		kbStatus = pbp.PaymentTransactionInfoPlugin_CANCELED
-	}
-	return kbStatus
 }

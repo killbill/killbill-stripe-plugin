@@ -35,16 +35,21 @@ import (
 )
 
 var (
-	db *sql.DB
+	stripeDb dao.StripeDB
 )
 
 func init() {
 	var err error
 
-	db, err = sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
+	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/killbill_go")
 	if err != nil {
 		panic(err)
 	}
+
+	stripeDb = dao.StripeDB{
+		DB: db,
+	}
+
 	// TODO destructor?
 	//defer db.Close()
 }
@@ -63,7 +68,7 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 	var ch *stripe.Charge
 	var err error
 
-	stripeSource, err := dao.GetStripeSource(*db, *req)
+	stripeSource, err := stripeDb.GetStripeSource(*req)
 	if err != nil {
 		ch = &stripe.Charge{
 			Status: "canceled",
@@ -79,7 +84,7 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 			ApplicationFee: nil,
 			Capture:        &capture,
 			Currency:       &req.Currency,
-			Customer:       &stripeSource.CustomerId,
+			Customer:       &stripeSource.StripeCustomerId,
 			Source: &stripe.SourceParams{
 				Token: &stripeSource.StripeId,
 			},
@@ -87,18 +92,32 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 		ch, err = charge.New(chargeParams)
 	}
 
-	stripeResponse := dao.StripeResponse{
-		StripeId: ch.ID,
-		Amount:   ch.Amount,
-		Currency: string(ch.Currency),
-		Status:   string(ch.Status),
+	stripeError := ""
+	if err != nil {
+		stripeError = err.Error()
 	}
-	err = dao.SaveTransaction(*db, *req, transactionType, &stripeResponse, err)
+
+	stripeResponse := dao.StripeTransaction{
+		StripeObject: dao.StripeObject{
+			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentId:            req.GetKbPaymentId(),
+		KbPaymentTransactionId: req.GetKbTransactionId(),
+		KbTransactionType:      transactionType.String(),
+		StripeId:               ch.ID,
+		StripeAmount:           ch.Amount,
+		StripeCurrency:         string(ch.Currency),
+		StripeStatus:           string(ch.Status),
+		StripeError:            stripeError,
+	}
+	err = stripeDb.SaveTransaction(&stripeResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, transactionType, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
 }
 
 func toKbPaymentPluginStatus(stripeStatus string, chErr error) pbp.PaymentTransactionInfoPlugin_PaymentPluginStatus {
@@ -123,71 +142,99 @@ func (m PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.Pay
 	var ch *stripe.Charge
 	var err error
 
-	tx, err := dao.GetTransactions(*db, *req)
+	tx, err := stripeDb.GetTransactions(*req)
 	if err != nil {
 		ch = &stripe.Charge{
 			Status: "canceled",
 		}
 	} else {
-		stripeId := tx[len(tx)-1].FirstPaymentReferenceId // TODO Should we do any validation here?
+		stripeId := tx[len(tx)-1].StripeId // TODO Should we do any validation here?
 		ch, err = charge.Capture(stripeId, nil)
 	}
 
-	stripeResponse := dao.StripeResponse{
-		StripeId: ch.ID,
-		Amount:   ch.Amount,
-		Currency: string(ch.Currency),
-		Status:   string(ch.Status),
+	stripeError := ""
+	if err != nil {
+		stripeError = err.Error()
 	}
-	err = dao.SaveTransaction(*db, *req, pbp.PaymentTransactionInfoPlugin_CAPTURE, &stripeResponse, err)
+
+	stripeResponse := dao.StripeTransaction{
+		StripeObject: dao.StripeObject{
+			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentId:            req.GetKbPaymentId(),
+		KbPaymentTransactionId: req.GetKbTransactionId(),
+		KbTransactionType:      pbp.PaymentTransactionInfoPlugin_CAPTURE.String(),
+		StripeId:               ch.ID,
+		StripeAmount:           ch.Amount,
+		StripeCurrency:         string(ch.Currency),
+		StripeStatus:           string(ch.Status),
+		StripeError:            stripeError,
+	}
+	err = stripeDb.SaveTransaction(&stripeResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, pbp.PaymentTransactionInfoPlugin_CAPTURE, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
 }
 
 func (m PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	var ref *stripe.Refund
 	var err error
 
-	tx, err := dao.GetTransactions(*db, *req)
+	tx, err := stripeDb.GetTransactions(*req)
 	if err != nil {
 		ref = &stripe.Refund{
 			Status: "canceled",
 		}
 	} else {
-		stripeId := tx[len(tx)-1].FirstPaymentReferenceId // TODO Should we do any validation here?
+		stripeId := tx[len(tx)-1].StripeId // TODO Should we do any validation here?
 		ref, err = refund.New(&stripe.RefundParams{
 			Charge: &stripeId,
 		})
 	}
 
-	stripeResponse := dao.StripeResponse{
-		StripeId: ref.ID,
-		Amount:   ref.Amount,
-		Currency: string(ref.Currency),
-		Status:   string(ref.Status),
+	stripeError := ""
+	if err != nil {
+		stripeError = err.Error()
 	}
-	err = dao.SaveTransaction(*db, *req, pbp.PaymentTransactionInfoPlugin_REFUND, &stripeResponse, err)
+
+	stripeResponse := dao.StripeTransaction{
+		StripeObject: dao.StripeObject{
+			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentId:            req.GetKbPaymentId(),
+		KbPaymentTransactionId: req.GetKbTransactionId(),
+		KbTransactionType:      pbp.PaymentTransactionInfoPlugin_REFUND.String(),
+		StripeId:               ref.ID,
+		StripeAmount:           ref.Amount,
+		StripeCurrency:         string(ref.Currency),
+		StripeStatus:           string(ref.Status),
+		StripeError:            stripeError,
+	}
+	err = stripeDb.SaveTransaction(&stripeResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, pbp.PaymentTransactionInfoPlugin_REFUND, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
 }
 
-func buildPaymentTransactionInfoPlugin(req *pbp.PaymentRequest, txType pbp.PaymentTransactionInfoPlugin_TransactionType, stripeResponse dao.StripeResponse, chErr error) *pbp.PaymentTransactionInfoPlugin {
+func buildPaymentTransactionInfoPlugin(req *pbp.PaymentRequest, stripeResponse dao.StripeTransaction, chErr error) *pbp.PaymentTransactionInfoPlugin {
 	return &pbp.PaymentTransactionInfoPlugin{
 		KbPaymentId:             req.GetKbPaymentId(),
 		KbTransactionPaymentId:  req.GetKbTransactionId(),
-		TransactionType:         txType,
-		Amount:                  strconv.FormatInt(stripeResponse.Amount*100, 10), // TODO Joda-Money?
-		Currency:                strings.ToUpper(stripeResponse.Currency),
+		TransactionType:         kb.ToKbTransactionType(stripeResponse.KbTransactionType),
+		Amount:                  strconv.FormatInt(stripeResponse.StripeAmount/100, 10), // TODO Joda-Money?
+		Currency:                strings.ToUpper(stripeResponse.StripeCurrency),
 		CreatedDate:             stripeResponse.CreatedAt.Format(time.RFC3339),
 		EffectiveDate:           stripeResponse.CreatedAt.Format(time.RFC3339),
-		GetStatus:               toKbPaymentPluginStatus(stripeResponse.Status, chErr),
-		GatewayError:            stripeResponse.Error,
+		GetStatus:               toKbPaymentPluginStatus(stripeResponse.StripeStatus, chErr),
+		GatewayError:            stripeResponse.StripeError,
 		GatewayErrorCode:        "",
 		FirstPaymentReferenceId: stripeResponse.StripeId,
 	}
@@ -203,26 +250,34 @@ func (m PaymentPluginApiServer) CreditPayment(ctx context.Context, req *pbp.Paym
 
 func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactionInfoPlugin_TransactionType) (*pbp.PaymentTransactionInfoPlugin, error) {
 	paymentErr := errors.New("Unsupported Stripe operation")
-	stripeResponse := dao.StripeResponse{
-		Status: "canceled",
+	stripeResponse := dao.StripeTransaction{
+		StripeObject: dao.StripeObject{
+			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentId:            req.GetKbPaymentId(),
+		KbPaymentTransactionId: req.GetKbTransactionId(),
+		KbTransactionType:      transactionType.String(),
+		StripeStatus:           "canceled",
 	}
-
-	err := dao.SaveTransaction(*db, *req, transactionType, &stripeResponse, paymentErr)
+	err := stripeDb.SaveTransaction(&stripeResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, transactionType, stripeResponse, paymentErr), paymentErr
+	return buildPaymentTransactionInfoPlugin(req, stripeResponse, paymentErr), paymentErr
 }
 
 func (m PaymentPluginApiServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.PaymentPluginApi_GetPaymentInfoServer) (error) {
-	res, err := dao.GetTransactions(*db, *req)
+	res, err := stripeDb.GetTransactions(*req)
 	if err != nil {
 		return err
 	}
 
 	for _, e := range res {
-		s.Send(&e)
+		paymentTransactionInfoPlugin := buildPaymentTransactionInfoPlugin(req, e, nil)
+		s.Send(paymentTransactionInfoPlugin)
 	}
 
 	return nil
@@ -260,11 +315,16 @@ func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 	}
 
 	stripeSource := dao.StripeSource{
-		StripeId:   c.ID,
-		CustomerId: stripeCustomerId,
-		CreatedAt:  time.Now().In(time.UTC), // TODO KB clock
+		StripeObject: dao.StripeObject{
+			CreatedAt:   time.Time{},
+			KBAccountId: req.GetKbAccountId(),
+			KBTenantId:  req.GetContext().GetTenantId(),
+		},
+		KbPaymentMethodId: req.GetKbPaymentMethodId(),
+		StripeId:          c.ID,
+		StripeCustomerId:  stripeCustomerId,
 	}
-	err = dao.SaveStripeSource(*db, *req, &stripeSource)
+	err = stripeDb.SaveStripeSource(&stripeSource)
 	if err != nil {
 		return nil, err
 	}
@@ -273,12 +333,12 @@ func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 }
 
 func (m PaymentPluginApiServer) GetPaymentMethodDetail(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
-	stripeSource, err := dao.GetStripeSource(*db, *req)
+	stripeSource, err := stripeDb.GetStripeSource(*req)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildPaymentMethodPlugin(req, *stripeSource), nil
+	return buildPaymentMethodPlugin(req, stripeSource), nil
 }
 
 func buildPaymentMethodPlugin(req *pbp.PaymentRequest, stripeSource dao.StripeSource) *pbp.PaymentMethodPlugin {
@@ -289,7 +349,7 @@ func buildPaymentMethodPlugin(req *pbp.PaymentRequest, stripeSource dao.StripeSo
 		Properties: []*pbp.PluginProperty{
 			{
 				Key:         "stripeCustomerId",
-				Value:       stripeSource.CustomerId,
+				Value:       stripeSource.StripeCustomerId,
 				IsUpdatable: false,
 			},
 			{
