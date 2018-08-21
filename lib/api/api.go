@@ -97,9 +97,14 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 		stripeError = err.Error()
 	}
 
+	kbCreatedDate, err := time.Parse("2006-01-02T15:04:05Z", req.GetContext().GetCreatedDate())
+	if err != nil {
+		return nil, err
+	}
+
 	stripeResponse := dao.StripeTransaction{
 		StripeObject: dao.StripeObject{
-			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			CreatedAt:   kbCreatedDate,
 			KBAccountId: req.GetKbAccountId(),
 			KBTenantId:  req.GetContext().GetTenantId(),
 		},
@@ -157,9 +162,14 @@ func (m PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.Pay
 		stripeError = err.Error()
 	}
 
+	kbCreatedDate, err := time.Parse("2006-01-02T15:04:05Z", req.GetContext().GetCreatedDate())
+	if err != nil {
+		return nil, err
+	}
+
 	stripeResponse := dao.StripeTransaction{
 		StripeObject: dao.StripeObject{
-			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			CreatedAt:   kbCreatedDate,
 			KBAccountId: req.GetKbAccountId(),
 			KBTenantId:  req.GetContext().GetTenantId(),
 		},
@@ -201,9 +211,14 @@ func (m PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.Paym
 		stripeError = err.Error()
 	}
 
+	kbCreatedDate, err := time.Parse("2006-01-02T15:04:05Z", req.GetContext().GetCreatedDate())
+	if err != nil {
+		return nil, err
+	}
+
 	stripeResponse := dao.StripeTransaction{
 		StripeObject: dao.StripeObject{
-			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			CreatedAt:   kbCreatedDate,
 			KBAccountId: req.GetKbAccountId(),
 			KBTenantId:  req.GetContext().GetTenantId(),
 		},
@@ -250,9 +265,15 @@ func (m PaymentPluginApiServer) CreditPayment(ctx context.Context, req *pbp.Paym
 
 func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactionInfoPlugin_TransactionType) (*pbp.PaymentTransactionInfoPlugin, error) {
 	paymentErr := errors.New("Unsupported Stripe operation")
+
+	kbCreatedDate, err := time.Parse("2006-01-02T15:04:05Z", req.GetContext().GetCreatedDate())
+	if err != nil {
+		return nil, err
+	}
+
 	stripeResponse := dao.StripeTransaction{
 		StripeObject: dao.StripeObject{
-			CreatedAt:   time.Now().In(time.UTC), // TODO KB Clock
+			CreatedAt:   kbCreatedDate,
 			KBAccountId: req.GetKbAccountId(),
 			KBTenantId:  req.GetContext().GetTenantId(),
 		},
@@ -261,7 +282,8 @@ func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTr
 		KbTransactionType:      transactionType.String(),
 		StripeStatus:           "canceled",
 	}
-	err := stripeDb.SaveTransaction(&stripeResponse)
+
+	err = stripeDb.SaveTransaction(&stripeResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -314,9 +336,14 @@ func (m PaymentPluginApiServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 		return nil, err
 	}
 
+	kbCreatedDate, err := time.Parse("2006-01-02T15:04:05Z", req.GetContext().GetCreatedDate())
+	if err != nil {
+		return nil, err
+	}
+
 	stripeSource := dao.StripeSource{
 		StripeObject: dao.StripeObject{
-			CreatedAt:   time.Time{},
+			CreatedAt:   kbCreatedDate,
 			KBAccountId: req.GetKbAccountId(),
 			KBTenantId:  req.GetContext().GetTenantId(),
 		},

@@ -107,7 +107,7 @@ func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error
 }
 
 func (db *StripeDB) SaveTransaction(stripeTransaction *StripeTransaction) (error) {
-	now := time.Now().In(time.UTC).Format("2006-01-02T15:04:05")
+	now := stripeTransaction.CreatedAt.Format("2006-01-02T15:04:05")
 
 	resp, err := db.Exec("insert into stripe_transactions (kb_payment_id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, kb_account_id, kb_tenant_id, created_at) values (?,?,?,?,?,?,?,?,?,?,?)",
 		stripeTransaction.KbPaymentId, stripeTransaction.KbPaymentTransactionId, stripeTransaction.KbTransactionType, stripeTransaction.StripeId, stripeTransaction.StripeAmount, stripeTransaction.StripeCurrency, stripeTransaction.StripeStatus, stripeTransaction.StripeError, stripeTransaction.KBAccountId, stripeTransaction.KBTenantId, now)

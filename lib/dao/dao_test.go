@@ -37,8 +37,9 @@ func buildStripeDB(t *testing.T) StripeDB {
 
 func buildPaymentRequest() pbp.PaymentRequest {
 	context := &pbc.CallContext{
-		AccountId: kb.RandomUUID(),
-		TenantId:  kb.RandomUUID(),
+		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
+		AccountId:   kb.RandomUUID(),
+		TenantId:    kb.RandomUUID(),
 	}
 	request := pbp.PaymentRequest{
 		KbAccountId:       context.GetAccountId(),
@@ -59,9 +60,12 @@ func TestPaymentMethod(t *testing.T) {
 
 	request := buildPaymentRequest()
 
+	createdAt, err := time.Parse(time.RFC3339, request.GetContext().GetCreatedDate())
+	kb.AssertOk(t, err)
+
 	stripeSourceInput := StripeSource{
 		StripeObject: StripeObject{
-			CreatedAt:   time.Now().In(time.UTC),
+			CreatedAt:   createdAt,
 			KBAccountId: request.GetKbAccountId(),
 			KBTenantId:  request.GetContext().GetTenantId(),
 		},
@@ -69,13 +73,14 @@ func TestPaymentMethod(t *testing.T) {
 		StripeId:          kb.RandomUUID(),
 		StripeCustomerId:  kb.RandomUUID(),
 	}
-	err := db.SaveStripeSource(&stripeSourceInput)
+	err = db.SaveStripeSource(&stripeSourceInput)
 	kb.AssertOk(t, err)
 
 	stripeSource, err := db.GetStripeSource(request)
 	kb.AssertOk(t, err)
 	kb.AssertEquals(t, stripeSourceInput.StripeId, stripeSource.StripeId)
 	kb.AssertEquals(t, stripeSourceInput.StripeCustomerId, stripeSource.StripeCustomerId)
+	kb.AssertEquals(t, stripeSourceInput.CreatedAt.Format("2006-01-02 15:04:05"), stripeSource.CreatedAt.Format("2006-01-02 15:04:05"))
 }
 
 func TestTransaction(t *testing.T) {
@@ -84,8 +89,12 @@ func TestTransaction(t *testing.T) {
 
 	request := buildPaymentRequest()
 
+	createdAt, err := time.Parse(time.RFC3339, request.GetContext().GetCreatedDate())
+	kb.AssertOk(t, err)
+
 	stripeTransactionInput := StripeTransaction{
 		StripeObject: StripeObject{
+			CreatedAt:   createdAt,
 			KBAccountId: request.GetKbAccountId(),
 			KBTenantId:  request.GetContext().GetTenantId(),
 		},
@@ -97,7 +106,7 @@ func TestTransaction(t *testing.T) {
 		StripeCurrency:         "USD",
 		StripeStatus:           "succeeded",
 	}
-	err := db.SaveTransaction(&stripeTransactionInput)
+	err = db.SaveTransaction(&stripeTransactionInput)
 	kb.AssertOk(t, err)
 
 	payment, err := db.GetTransactions(request)
@@ -105,6 +114,7 @@ func TestTransaction(t *testing.T) {
 	kb.Assert(t, len(payment) == 1, "Wrong number of tx found")
 	kb.AssertEquals(t, "succeeded", payment[0].StripeStatus)
 	kb.AssertEquals(t, request.GetKbTransactionId(), payment[0].KbPaymentTransactionId)
+	kb.AssertEquals(t, request.GetContext().GetCreatedDate(), payment[0].CreatedAt.Format(time.RFC3339))
 
 	request.KbTransactionId = kb.RandomUUID()
 	stripeTransactionInput.KbPaymentTransactionId = request.KbTransactionId
@@ -119,4 +129,5 @@ func TestTransaction(t *testing.T) {
 	kb.AssertEquals(t, "failed", payment[1].StripeStatus)
 	kb.AssertEquals(t, request.GetKbTransactionId(), payment[1].KbPaymentTransactionId)
 	kb.Assert(t, payment[1].KbPaymentTransactionId != payment[0].KbPaymentTransactionId, "KbPaymentTransactionId should be different")
+	kb.AssertEquals(t, request.GetContext().GetCreatedDate(), payment[1].CreatedAt.Format(time.RFC3339))
 }

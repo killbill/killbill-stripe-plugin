@@ -25,6 +25,7 @@ import (
 	"os"
 	"github.com/stripe/stripe-go"
 	"google.golang.org/grpc"
+	"time"
 )
 
 type MockPaymentPluginApi_GetPaymentInfoServer struct {
@@ -44,6 +45,7 @@ func TestAuthCaptureRefund(t *testing.T) {
 	stripeCustomerId := os.Getenv("STRIPE_CUSTOMER_ID")
 
 	context := &pbc.CallContext{
+		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
 		AccountId: kb.RandomUUID(),
 		TenantId:  kb.RandomUUID(),
 	}
