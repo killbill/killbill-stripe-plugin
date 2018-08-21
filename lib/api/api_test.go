@@ -38,7 +38,7 @@ func (m *MockPaymentPluginApi_GetPaymentInfoServer) Send(res *pbp.PaymentTransac
 	return nil
 }
 
-func TestAuthCaptureRefund(t *testing.T) {
+func TestPurchase(t *testing.T) {
 	stripe.LogLevel = 3
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	stripeToken := os.Getenv("STRIPE_TOKEN")
@@ -46,8 +46,8 @@ func TestAuthCaptureRefund(t *testing.T) {
 
 	context := &pbc.CallContext{
 		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
-		AccountId: kb.RandomUUID(),
-		TenantId:  kb.RandomUUID(),
+		AccountId:   kb.RandomUUID(),
+		TenantId:    kb.RandomUUID(),
 	}
 	request := pbp.PaymentRequest{
 		KbAccountId:       context.GetAccountId(),
@@ -74,35 +74,106 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertOk(t, err)
 	kb.AssertEquals(t, request.GetKbPaymentMethodId(), paymentMethodPlugin.GetKbPaymentMethodId())
 
-	paymentTransactionInfoPlugin, err := server.AuthorizePayment(nil, &request)
+	paymentTransactionInfoPlugin, err := server.PurchasePayment(nil, &request)
 	kb.AssertOk(t, err)
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_AUTHORIZE, paymentTransactionInfoPlugin.GetTransactionType())
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PURCHASE, paymentTransactionInfoPlugin.GetTransactionType())
 	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, request.GetKbPaymentId(), paymentTransactionInfoPlugin.KbPaymentId)
+	kb.AssertEquals(t, request.GetKbTransactionId(), paymentTransactionInfoPlugin.KbTransactionPaymentId)
 
 	mockServer := &MockPaymentPluginApi_GetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 1, "Wrong number of tx")
+	for _, e := range mockServer.tx {
+		kb.AssertEquals(t, request.GetKbPaymentId(), e.KbPaymentId)
+		kb.AssertEquals(t, request.GetKbTransactionId(), e.KbTransactionPaymentId)
+	}
+}
+
+func TestAuthCaptureRefund(t *testing.T) {
+	stripe.LogLevel = 3
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	stripeToken := os.Getenv("STRIPE_TOKEN")
+	stripeCustomerId := os.Getenv("STRIPE_CUSTOMER_ID")
+
+	context := &pbc.CallContext{
+		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
+		AccountId:   kb.RandomUUID(),
+		TenantId:    kb.RandomUUID(),
+	}
+	request := pbp.PaymentRequest{
+		KbAccountId:       context.GetAccountId(),
+		KbPaymentId:       kb.RandomUUID(),
+		KbTransactionId:   kb.RandomUUID(),
+		KbPaymentMethodId: kb.RandomUUID(),
+		Amount:            "10",
+		Currency:          "USD",
+		Properties: []*pbp.PluginProperty{
+			{
+				Key:   "stripeToken",
+				Value: stripeToken,
+			},
+			{
+				Key:   "stripeCustomerId",
+				Value: stripeCustomerId,
+			}},
+		Context: context,
+	}
+
+	server := &PaymentPluginApiServer{}
+
+	paymentMethodPlugin, err := server.AddPaymentMethod(nil, &request)
+	kb.AssertOk(t, err)
+	kb.AssertEquals(t, request.GetKbPaymentMethodId(), paymentMethodPlugin.GetKbPaymentMethodId())
+
+	authPaymentTransactionInfoPlugin, err := server.AuthorizePayment(nil, &request)
+	kb.AssertOk(t, err)
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_AUTHORIZE, authPaymentTransactionInfoPlugin.GetTransactionType())
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, authPaymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, request.GetKbPaymentId(), authPaymentTransactionInfoPlugin.KbPaymentId)
+	kb.AssertEquals(t, request.GetKbTransactionId(), authPaymentTransactionInfoPlugin.KbTransactionPaymentId)
+
+	mockServer := &MockPaymentPluginApi_GetPaymentInfoServer{}
+	err = server.GetPaymentInfo(&request, mockServer)
+	kb.AssertOk(t, err)
+	kb.Assert(t, len(mockServer.tx) == 1, "Wrong number of tx")
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[0].KbPaymentId)
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[0].KbTransactionPaymentId)
 
 	request.KbTransactionId = kb.RandomUUID()
-	paymentTransactionInfoPlugin, err = server.CapturePayment(nil, &request)
+	capturePaymentTransactionInfoPlugin, err := server.CapturePayment(nil, &request)
 	kb.AssertOk(t, err)
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_CAPTURE, paymentTransactionInfoPlugin.GetTransactionType())
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_CAPTURE, capturePaymentTransactionInfoPlugin.GetTransactionType())
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, capturePaymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, request.GetKbPaymentId(), capturePaymentTransactionInfoPlugin.KbPaymentId)
+	kb.AssertEquals(t, request.GetKbTransactionId(), capturePaymentTransactionInfoPlugin.KbTransactionPaymentId)
 
 	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 2, "Wrong number of tx")
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[0].KbPaymentId)
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[0].KbTransactionPaymentId)
+	kb.AssertEquals(t, capturePaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[1].KbPaymentId)
+	kb.AssertEquals(t, capturePaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[1].KbTransactionPaymentId)
 
 	request.KbTransactionId = kb.RandomUUID()
-	paymentTransactionInfoPlugin, err = server.RefundPayment(nil, &request)
+	refundPaymentTransactionInfoPlugin, err := server.RefundPayment(nil, &request)
 	kb.AssertOk(t, err)
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_REFUND, paymentTransactionInfoPlugin.GetTransactionType())
-	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, paymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_REFUND, refundPaymentTransactionInfoPlugin.GetTransactionType())
+	kb.AssertEquals(t, pbp.PaymentTransactionInfoPlugin_PROCESSED, refundPaymentTransactionInfoPlugin.GetStatus)
+	kb.AssertEquals(t, request.GetKbPaymentId(), refundPaymentTransactionInfoPlugin.KbPaymentId)
+	kb.AssertEquals(t, request.GetKbTransactionId(), refundPaymentTransactionInfoPlugin.KbTransactionPaymentId)
 
 	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 3, "Wrong number of tx")
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[0].KbPaymentId)
+	kb.AssertEquals(t, authPaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[0].KbTransactionPaymentId)
+	kb.AssertEquals(t, capturePaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[1].KbPaymentId)
+	kb.AssertEquals(t, capturePaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[1].KbTransactionPaymentId)
+	kb.AssertEquals(t, refundPaymentTransactionInfoPlugin.GetKbPaymentId(), mockServer.tx[2].KbPaymentId)
+	kb.AssertEquals(t, refundPaymentTransactionInfoPlugin.GetKbTransactionPaymentId(), mockServer.tx[2].KbTransactionPaymentId)
 }

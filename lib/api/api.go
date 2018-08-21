@@ -122,7 +122,7 @@ func stripeCharge(req *pbp.PaymentRequest, transactionType pbp.PaymentTransactio
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(stripeResponse, err), err
 }
 
 func toKbPaymentPluginStatus(stripeStatus string, chErr error) pbp.PaymentTransactionInfoPlugin_PaymentPluginStatus {
@@ -187,7 +187,7 @@ func (m PaymentPluginApiServer) CapturePayment(ctx context.Context, req *pbp.Pay
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(stripeResponse, err), err
 }
 
 func (m PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
@@ -236,22 +236,22 @@ func (m PaymentPluginApiServer) RefundPayment(ctx context.Context, req *pbp.Paym
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, stripeResponse, err), err
+	return buildPaymentTransactionInfoPlugin(stripeResponse, err), err
 }
 
-func buildPaymentTransactionInfoPlugin(req *pbp.PaymentRequest, stripeResponse dao.StripeTransaction, chErr error) *pbp.PaymentTransactionInfoPlugin {
+func buildPaymentTransactionInfoPlugin(stripeTransaction dao.StripeTransaction, chErr error) *pbp.PaymentTransactionInfoPlugin {
 	return &pbp.PaymentTransactionInfoPlugin{
-		KbPaymentId:             req.GetKbPaymentId(),
-		KbTransactionPaymentId:  req.GetKbTransactionId(),
-		TransactionType:         kb.ToKbTransactionType(stripeResponse.KbTransactionType),
-		Amount:                  strconv.FormatInt(stripeResponse.StripeAmount/100, 10), // TODO Joda-Money?
-		Currency:                strings.ToUpper(stripeResponse.StripeCurrency),
-		CreatedDate:             stripeResponse.CreatedAt.Format(time.RFC3339),
-		EffectiveDate:           stripeResponse.CreatedAt.Format(time.RFC3339),
-		GetStatus:               toKbPaymentPluginStatus(stripeResponse.StripeStatus, chErr),
-		GatewayError:            stripeResponse.StripeError,
+		KbPaymentId:             stripeTransaction.KbPaymentId,
+		KbTransactionPaymentId:  stripeTransaction.KbPaymentTransactionId,
+		TransactionType:         kb.ToKbTransactionType(stripeTransaction.KbTransactionType),
+		Amount:                  strconv.FormatInt(stripeTransaction.StripeAmount/100, 10), // TODO Joda-Money?
+		Currency:                strings.ToUpper(stripeTransaction.StripeCurrency),
+		CreatedDate:             stripeTransaction.CreatedAt.Format(time.RFC3339),
+		EffectiveDate:           stripeTransaction.CreatedAt.Format(time.RFC3339),
+		GetStatus:               toKbPaymentPluginStatus(stripeTransaction.StripeStatus, chErr),
+		GatewayError:            stripeTransaction.StripeError,
 		GatewayErrorCode:        "",
-		FirstPaymentReferenceId: stripeResponse.StripeId,
+		FirstPaymentReferenceId: stripeTransaction.StripeId,
 	}
 }
 
@@ -288,7 +288,7 @@ func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTr
 		return nil, err
 	}
 
-	return buildPaymentTransactionInfoPlugin(req, stripeResponse, paymentErr), paymentErr
+	return buildPaymentTransactionInfoPlugin(stripeResponse, paymentErr), paymentErr
 }
 
 func (m PaymentPluginApiServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.PaymentPluginApi_GetPaymentInfoServer) (error) {
@@ -298,7 +298,7 @@ func (m PaymentPluginApiServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.Pa
 	}
 
 	for _, e := range res {
-		paymentTransactionInfoPlugin := buildPaymentTransactionInfoPlugin(req, e, nil)
+		paymentTransactionInfoPlugin := buildPaymentTransactionInfoPlugin(e, nil)
 		s.Send(paymentTransactionInfoPlugin)
 	}
 
