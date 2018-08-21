@@ -18,6 +18,7 @@
 package api
 
 import (
+	pba "github.com/killbill/killbill-rpc/go/api/killbill/account"
 	pbp "github.com/killbill/killbill-rpc/go/api/plugin/payment"
 	kb "github.com/killbill/killbill-plugin-framework-go"
 
@@ -33,6 +34,8 @@ import (
 	"github.com/stripe/stripe-go/card"
 	"strings"
 	"github.com/stripe/stripe-go/customer"
+	"google.golang.org/grpc"
+	"github.com/golang/glog"
 )
 
 var (
@@ -326,9 +329,12 @@ func (m PaymentPluginAPIServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 	if stripeCustomerID == "" {
 		// TODO Retrieve it from a previous tx first
 
+		// Retrieve the Kill Bill account external key
+		kbAccount := getKillBillAccount(req, "localhost:21345")
+
 		// Create the Stripe customer
 		params := &stripe.CustomerParams{
-			Description: stripe.String(req.GetKbAccountId()),
+			Description: stripe.String(kbAccount.GetExternalKey()),
 		}
 		cus, err := customer.New(params)
 		if err != nil {
@@ -367,6 +373,37 @@ func (m PaymentPluginAPIServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 	}
 
 	return buildPaymentMethodPlugin(req, stripeSource), nil
+}
+
+func getKillBillAccount(req *pbp.PaymentRequest, killbillAddr string) (*pba.Account) {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+	conn, err := grpc.Dial(killbillAddr, opts...)
+	if err != nil {
+		glog.Warning("fail to dial: %v", err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kbClient := pba.NewAccountApiClient(conn)
+	accountRequest := &pba.AccountRequest{
+		Account: &pba.Account{
+			AccountId: req.GetContext().GetAccountId(),
+		},
+		Context: req.GetContext(),
+	}
+	response, err := kbClient.GetAccount(ctx, accountRequest)
+	if err != nil {
+		glog.Warning("Unable to retrieve account: %v", err)
+	}
+	if response.BillingException != nil {
+		glog.Warning("Unable to retrieve account: %v", response.BillingException)
+		return nil
+	} else {
+		return response.Account
+	}
 }
 
 // GetPaymentMethodDetail implements PaymentPluginApi#GetPaymentMethodDetail.
