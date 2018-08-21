@@ -14,20 +14,24 @@
  * under the License.
  */
 
+// Package dao implements utility routines for database access.
 package dao
 
 import (
 	pbp "github.com/killbill/killbill-rpc/go/api/plugin/payment"
 	"database/sql"
+	// MySQL database driver
 	_ "github.com/go-sql-driver/mysql"
 	"time"
 	"strconv"
 )
 
+// StripeDB represents the plugin database.
 type StripeDB struct {
 	*sql.DB
 }
 
+// StripeObject holds common columns.
 type StripeObject struct {
 	ID          int64
 	CreatedAt   time.Time
@@ -35,6 +39,7 @@ type StripeObject struct {
 	KBTenantID  string
 }
 
+// StripeSource represents a row in stripe_payment_methods.
 type StripeSource struct {
 	StripeObject
 	KbPaymentMethodID string
@@ -42,6 +47,7 @@ type StripeSource struct {
 	StripeCustomerID  string
 }
 
+// StripeTransaction represents a row in stripe_transactions.
 type StripeTransaction struct {
 	StripeObject
 	KbPaymentID            string
@@ -54,6 +60,7 @@ type StripeTransaction struct {
 	StripeError            string
 }
 
+// SaveStripeSource creates a new row in stripe_payment_methods.
 func (db *StripeDB) SaveStripeSource(stripeSource *StripeSource) (error) {
 	now := stripeSource.CreatedAt.Format("2006-01-02T15:04:05")
 
@@ -73,6 +80,7 @@ func (db *StripeDB) SaveStripeSource(stripeSource *StripeSource) (error) {
 	return nil
 }
 
+// GetStripeSource retries the row matching a given payment method in stripe_payment_methods.
 func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error) {
 	var id int64
 	var stripeID, stripeCustomerID, createdAtStr string
@@ -106,6 +114,7 @@ func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error
 	}, nil
 }
 
+// SaveTransaction creates a new row in stripe_transactions.
 func (db *StripeDB) SaveTransaction(stripeTransaction *StripeTransaction) (error) {
 	now := stripeTransaction.CreatedAt.Format("2006-01-02T15:04:05")
 
@@ -125,6 +134,7 @@ func (db *StripeDB) SaveTransaction(stripeTransaction *StripeTransaction) (error
 	return nil
 }
 
+// GetTransactions retries all rows matching a given payment in stripe_transactions.
 func (db *StripeDB) GetTransactions(req pbp.PaymentRequest) ([]StripeTransaction, error) {
 	rows, err := db.Query("select id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, created_at from stripe_transactions where kb_payment_id = ? and kb_account_id = ? and kb_tenant_id = ?", req.GetKbPaymentId(), req.GetKbAccountId(), req.GetContext().GetTenantId())
 	if err != nil {

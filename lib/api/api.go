@@ -14,6 +14,7 @@
  * under the License.
  */
 
+// Package api implements the Kill Bill PaymentPluginApi.
 package api
 
 import (
@@ -54,12 +55,15 @@ func init() {
 	//defer db.Close()
 }
 
+// PaymentPluginAPIServer implements PaymentPluginApi.
 type PaymentPluginAPIServer struct{}
 
+// AuthorizePayment implements PaymentPluginApi#AuthorizePayment.
 func (m PaymentPluginAPIServer) AuthorizePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return stripeCharge(req, pbp.PaymentTransactionInfoPlugin_AUTHORIZE)
 }
 
+// PurchasePayment implements PaymentPluginApi#PurchasePayment.
 func (m PaymentPluginAPIServer) PurchasePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return stripeCharge(req, pbp.PaymentTransactionInfoPlugin_PURCHASE)
 }
@@ -143,6 +147,7 @@ func toKbPaymentPluginStatus(stripeStatus string, chErr error) pbp.PaymentTransa
 	return kbStatus
 }
 
+// CapturePayment implements PaymentPluginApi#CapturePayment.
 func (m PaymentPluginAPIServer) CapturePayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	var ch *stripe.Charge
 	var err error
@@ -190,6 +195,7 @@ func (m PaymentPluginAPIServer) CapturePayment(ctx context.Context, req *pbp.Pay
 	return buildPaymentTransactionInfoPlugin(stripeResponse, err), err
 }
 
+// RefundPayment implements PaymentPluginApi#RefundPayment.
 func (m PaymentPluginAPIServer) RefundPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	var ref *stripe.Refund
 	var err error
@@ -255,10 +261,12 @@ func buildPaymentTransactionInfoPlugin(stripeTransaction dao.StripeTransaction, 
 	}
 }
 
+// VoidPayment implements PaymentPluginApi#VoidPayment.
 func (m PaymentPluginAPIServer) VoidPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return unsupportedOperation(req, pbp.PaymentTransactionInfoPlugin_VOID)
 }
 
+// CreditPayment implements PaymentPluginApi#CreditPayment.
 func (m PaymentPluginAPIServer) CreditPayment(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentTransactionInfoPlugin, error) {
 	return unsupportedOperation(req, pbp.PaymentTransactionInfoPlugin_CREDIT)
 }
@@ -291,6 +299,7 @@ func unsupportedOperation(req *pbp.PaymentRequest, transactionType pbp.PaymentTr
 	return buildPaymentTransactionInfoPlugin(stripeResponse, paymentErr), paymentErr
 }
 
+// GetPaymentInfo implements PaymentPluginApi#GetPaymentInfo.
 func (m PaymentPluginAPIServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.PaymentPluginApi_GetPaymentInfoServer) (error) {
 	res, err := stripeDb.GetTransactions(*req)
 	if err != nil {
@@ -305,6 +314,7 @@ func (m PaymentPluginAPIServer) GetPaymentInfo(req *pbp.PaymentRequest, s pbp.Pa
 	return nil
 }
 
+// AddPaymentMethod implements PaymentPluginApi#AddPaymentMethod.
 func (m PaymentPluginAPIServer) AddPaymentMethod(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
 	stripeToken := kb.FindPluginProperty2(req.GetProperties(), "stripeToken")
 	if stripeToken == "" {
@@ -359,6 +369,7 @@ func (m PaymentPluginAPIServer) AddPaymentMethod(ctx context.Context, req *pbp.P
 	return buildPaymentMethodPlugin(req, stripeSource), nil
 }
 
+// GetPaymentMethodDetail implements PaymentPluginApi#GetPaymentMethodDetail.
 func (m PaymentPluginAPIServer) GetPaymentMethodDetail(ctx context.Context, req *pbp.PaymentRequest) (*pbp.PaymentMethodPlugin, error) {
 	stripeSource, err := stripeDb.GetStripeSource(*req)
 	if err != nil {
