@@ -31,23 +31,23 @@ type StripeDB struct {
 type StripeObject struct {
 	ID          int64
 	CreatedAt   time.Time
-	KBAccountId string
-	KBTenantId  string
+	KBAccountID string
+	KBTenantID  string
 }
 
 type StripeSource struct {
 	StripeObject
-	KbPaymentMethodId string
-	StripeId          string
-	StripeCustomerId  string
+	KbPaymentMethodID string
+	StripeID          string
+	StripeCustomerID  string
 }
 
 type StripeTransaction struct {
 	StripeObject
-	KbPaymentId            string
-	KbPaymentTransactionId string
+	KbPaymentID            string
+	KbPaymentTransactionID string
 	KbTransactionType      string
-	StripeId               string
+	StripeID               string
 	StripeAmount           int64 // In cents
 	StripeCurrency         string
 	StripeStatus           string
@@ -58,32 +58,32 @@ func (db *StripeDB) SaveStripeSource(stripeSource *StripeSource) (error) {
 	now := stripeSource.CreatedAt.Format("2006-01-02T15:04:05")
 
 	resp, err := db.Exec("insert into stripe_payment_methods (kb_payment_method_id, stripe_id, stripe_customer_id, kb_account_id, kb_tenant_id, created_at, updated_at) values (?,?,?,?,?,?,?)",
-		stripeSource.KbPaymentMethodId, stripeSource.StripeId, stripeSource.StripeCustomerId, stripeSource.KBAccountId, stripeSource.KBTenantId, now, now)
+		stripeSource.KbPaymentMethodID, stripeSource.StripeID, stripeSource.StripeCustomerID, stripeSource.KBAccountID, stripeSource.KBTenantID, now, now)
 	if err != nil {
 		return err
 	}
 
-	lastInsertId, err := resp.LastInsertId()
+	lastInsertID, err := resp.LastInsertId()
 	if err != nil {
 		return err
 	}
 
-	stripeSource.ID = lastInsertId
+	stripeSource.ID = lastInsertID
 
 	return nil
 }
 
 func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error) {
 	var id int64
-	var stripeId, stripeCustomerId, createdAtStr string
+	var stripeID, stripeCustomerID, createdAtStr string
 
-	getStripeIdStatement, err := db.Prepare("select id, stripe_id, stripe_customer_id, created_at from stripe_payment_methods where !is_deleted and kb_payment_method_id = ? and kb_account_id = ? and kb_tenant_id = ? limit 1")
+	getStripeIDStatement, err := db.Prepare("select id, stripe_id, stripe_customer_id, created_at from stripe_payment_methods where !is_deleted and kb_payment_method_id = ? and kb_account_id = ? and kb_tenant_id = ? limit 1")
 	if err != nil {
 		return StripeSource{}, err
 	}
-	defer getStripeIdStatement.Close()
+	defer getStripeIDStatement.Close()
 
-	err = getStripeIdStatement.QueryRow(req.GetKbPaymentMethodId(), req.GetKbAccountId(), req.GetContext().GetTenantId()).Scan(&id, &stripeId, &stripeCustomerId, &createdAtStr)
+	err = getStripeIDStatement.QueryRow(req.GetKbPaymentMethodId(), req.GetKbAccountId(), req.GetContext().GetTenantId()).Scan(&id, &stripeID, &stripeCustomerID, &createdAtStr)
 	if err != nil {
 		return StripeSource{}, err
 	}
@@ -97,12 +97,12 @@ func (db *StripeDB) GetStripeSource(req pbp.PaymentRequest) (StripeSource, error
 		StripeObject: StripeObject{
 			ID:          id,
 			CreatedAt:   createdAt,
-			KBAccountId: req.GetKbAccountId(),
-			KBTenantId:  req.GetContext().GetTenantId(),
+			KBAccountID: req.GetKbAccountId(),
+			KBTenantID:  req.GetContext().GetTenantId(),
 		},
-		KbPaymentMethodId: req.KbPaymentMethodId,
-		StripeId:          stripeId,
-		StripeCustomerId:  stripeCustomerId,
+		KbPaymentMethodID: req.KbPaymentMethodId,
+		StripeID:          stripeID,
+		StripeCustomerID:  stripeCustomerID,
 	}, nil
 }
 
@@ -110,17 +110,17 @@ func (db *StripeDB) SaveTransaction(stripeTransaction *StripeTransaction) (error
 	now := stripeTransaction.CreatedAt.Format("2006-01-02T15:04:05")
 
 	resp, err := db.Exec("insert into stripe_transactions (kb_payment_id, kb_payment_transaction_id, kb_transaction_type, stripe_id, stripe_amount, stripe_currency, stripe_status, stripe_error, kb_account_id, kb_tenant_id, created_at) values (?,?,?,?,?,?,?,?,?,?,?)",
-		stripeTransaction.KbPaymentId, stripeTransaction.KbPaymentTransactionId, stripeTransaction.KbTransactionType, stripeTransaction.StripeId, stripeTransaction.StripeAmount, stripeTransaction.StripeCurrency, stripeTransaction.StripeStatus, stripeTransaction.StripeError, stripeTransaction.KBAccountId, stripeTransaction.KBTenantId, now)
+		stripeTransaction.KbPaymentID, stripeTransaction.KbPaymentTransactionID, stripeTransaction.KbTransactionType, stripeTransaction.StripeID, stripeTransaction.StripeAmount, stripeTransaction.StripeCurrency, stripeTransaction.StripeStatus, stripeTransaction.StripeError, stripeTransaction.KBAccountID, stripeTransaction.KBTenantID, now)
 	if err != nil {
 		return err
 	}
 
-	lastInsertId, err := resp.LastInsertId()
+	lastInsertID, err := resp.LastInsertId()
 	if err != nil {
 		return err
 	}
 
-	stripeTransaction.ID = lastInsertId
+	stripeTransaction.ID = lastInsertID
 
 	return nil
 }
@@ -135,15 +135,15 @@ func (db *StripeDB) GetTransactions(req pbp.PaymentRequest) ([]StripeTransaction
 	var tx []StripeTransaction
 	for rows.Next() {
 		var id int64
-		var kbPaymentTransactionId string
+		var kbPaymentTransactionID string
 		var kbTransactionType string
-		var stripeId string
+		var stripeID string
 		var stripeAmountStr string
 		var stripeCurrency string
 		var stripeStatus string
 		var stripeError string
 		var createdAtStr string
-		err = rows.Scan(&id, &kbPaymentTransactionId, &kbTransactionType, &stripeId, &stripeAmountStr, &stripeCurrency, &stripeStatus, &stripeError, &createdAtStr)
+		err = rows.Scan(&id, &kbPaymentTransactionID, &kbTransactionType, &stripeID, &stripeAmountStr, &stripeCurrency, &stripeStatus, &stripeError, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
@@ -160,13 +160,13 @@ func (db *StripeDB) GetTransactions(req pbp.PaymentRequest) ([]StripeTransaction
 			StripeObject: StripeObject{
 				ID:          id,
 				CreatedAt:   createdAt,
-				KBAccountId: req.GetKbAccountId(),
-				KBTenantId:  req.GetKbAccountId(),
+				KBAccountID: req.GetKbAccountId(),
+				KBTenantID:  req.GetKbAccountId(),
 			},
-			KbPaymentId:            req.GetKbPaymentId(),
-			KbPaymentTransactionId: kbPaymentTransactionId,
+			KbPaymentID:            req.GetKbPaymentId(),
+			KbPaymentTransactionID: kbPaymentTransactionID,
 			KbTransactionType:      kbTransactionType,
-			StripeId:               stripeId,
+			StripeID:               stripeID,
 			StripeAmount:           stripeAmount,
 			StripeCurrency:         stripeCurrency,
 			StripeStatus:           stripeStatus,

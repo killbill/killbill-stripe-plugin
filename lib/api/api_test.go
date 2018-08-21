@@ -28,12 +28,12 @@ import (
 	"time"
 )
 
-type MockPaymentPluginApi_GetPaymentInfoServer struct {
+type MockPaymentPluginAPIGetPaymentInfoServer struct {
 	tx []pbp.PaymentTransactionInfoPlugin
 	grpc.ServerStream
 }
 
-func (m *MockPaymentPluginApi_GetPaymentInfoServer) Send(res *pbp.PaymentTransactionInfoPlugin) error {
+func (m *MockPaymentPluginAPIGetPaymentInfoServer) Send(res *pbp.PaymentTransactionInfoPlugin) error {
 	m.tx = append(m.tx, *res)
 	return nil
 }
@@ -42,7 +42,7 @@ func TestPurchase(t *testing.T) {
 	stripe.LogLevel = 3
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	stripeToken := os.Getenv("STRIPE_TOKEN")
-	stripeCustomerId := os.Getenv("STRIPE_CUSTOMER_ID")
+	stripeCustomerID := os.Getenv("STRIPE_CUSTOMER_ID")
 
 	context := &pbc.CallContext{
 		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
@@ -62,13 +62,13 @@ func TestPurchase(t *testing.T) {
 				Value: stripeToken,
 			},
 			{
-				Key:   "stripeCustomerId",
-				Value: stripeCustomerId,
+				Key:   "stripeCustomerID",
+				Value: stripeCustomerID,
 			}},
 		Context: context,
 	}
 
-	server := &PaymentPluginApiServer{}
+	server := &PaymentPluginAPIServer{}
 
 	paymentMethodPlugin, err := server.AddPaymentMethod(nil, &request)
 	kb.AssertOk(t, err)
@@ -81,7 +81,7 @@ func TestPurchase(t *testing.T) {
 	kb.AssertEquals(t, request.GetKbPaymentId(), paymentTransactionInfoPlugin.KbPaymentId)
 	kb.AssertEquals(t, request.GetKbTransactionId(), paymentTransactionInfoPlugin.KbTransactionPaymentId)
 
-	mockServer := &MockPaymentPluginApi_GetPaymentInfoServer{}
+	mockServer := &MockPaymentPluginAPIGetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 1, "Wrong number of tx")
@@ -95,7 +95,7 @@ func TestAuthCaptureRefund(t *testing.T) {
 	stripe.LogLevel = 3
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	stripeToken := os.Getenv("STRIPE_TOKEN")
-	stripeCustomerId := os.Getenv("STRIPE_CUSTOMER_ID")
+	stripeCustomerID := os.Getenv("STRIPE_CUSTOMER_ID")
 
 	context := &pbc.CallContext{
 		CreatedDate: time.Now().In(time.UTC).Format(time.RFC3339),
@@ -115,13 +115,13 @@ func TestAuthCaptureRefund(t *testing.T) {
 				Value: stripeToken,
 			},
 			{
-				Key:   "stripeCustomerId",
-				Value: stripeCustomerId,
+				Key:   "stripeCustomerID",
+				Value: stripeCustomerID,
 			}},
 		Context: context,
 	}
 
-	server := &PaymentPluginApiServer{}
+	server := &PaymentPluginAPIServer{}
 
 	paymentMethodPlugin, err := server.AddPaymentMethod(nil, &request)
 	kb.AssertOk(t, err)
@@ -134,7 +134,7 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, request.GetKbPaymentId(), authPaymentTransactionInfoPlugin.KbPaymentId)
 	kb.AssertEquals(t, request.GetKbTransactionId(), authPaymentTransactionInfoPlugin.KbTransactionPaymentId)
 
-	mockServer := &MockPaymentPluginApi_GetPaymentInfoServer{}
+	mockServer := &MockPaymentPluginAPIGetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 1, "Wrong number of tx")
@@ -149,7 +149,7 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, request.GetKbPaymentId(), capturePaymentTransactionInfoPlugin.KbPaymentId)
 	kb.AssertEquals(t, request.GetKbTransactionId(), capturePaymentTransactionInfoPlugin.KbTransactionPaymentId)
 
-	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
+	mockServer = &MockPaymentPluginAPIGetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 2, "Wrong number of tx")
@@ -166,7 +166,7 @@ func TestAuthCaptureRefund(t *testing.T) {
 	kb.AssertEquals(t, request.GetKbPaymentId(), refundPaymentTransactionInfoPlugin.KbPaymentId)
 	kb.AssertEquals(t, request.GetKbTransactionId(), refundPaymentTransactionInfoPlugin.KbTransactionPaymentId)
 
-	mockServer = &MockPaymentPluginApi_GetPaymentInfoServer{}
+	mockServer = &MockPaymentPluginAPIGetPaymentInfoServer{}
 	err = server.GetPaymentInfo(&request, mockServer)
 	kb.AssertOk(t, err)
 	kb.Assert(t, len(mockServer.tx) == 3, "Wrong number of tx")

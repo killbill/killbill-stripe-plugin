@@ -34,10 +34,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-type lifecyclePluginApiServer struct {
+type lifecyclePluginAPIServer struct {
 }
 
-func (lifecyclePluginApiServer) Start(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
+func (lifecyclePluginAPIServer) Start(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
 	resp := &pbl.LifecycleResponse{
 		Success: true,
 		Err:     "",
@@ -48,7 +48,7 @@ func (lifecyclePluginApiServer) Start(context.Context, *pbl.LifecycleRequest) (*
 	return resp, nil
 }
 
-func (lifecyclePluginApiServer) Stop(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
+func (lifecyclePluginAPIServer) Stop(context.Context, *pbl.LifecycleRequest) (*pbl.LifecycleResponse, error) {
 	resp := &pbl.LifecycleResponse{
 		Success: true,
 		Err:     "",
@@ -72,8 +72,8 @@ func startRPCServer(network, address string, serverStarted, exit chan interface{
 
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	pbp.RegisterPaymentPluginApiServer(grpcServer, api.PaymentPluginApiServer{})
-	pbl.RegisterLifecyclePluginApiServer(grpcServer, lifecyclePluginApiServer{})
+	pbp.RegisterPaymentPluginApiServer(grpcServer, api.PaymentPluginAPIServer{})
+	pbl.RegisterLifecyclePluginApiServer(grpcServer, lifecyclePluginAPIServer{})
 
 	// Best we can do but technically there is a small race condition
 	serverStarted <- signal
