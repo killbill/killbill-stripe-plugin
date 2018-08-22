@@ -392,7 +392,7 @@ func getKillBillAccount(req *pbp.PaymentRequest, killbillAddr string) (*pba.Acco
 		Account: &pba.Account{
 			AccountId: req.GetContext().GetAccountId(),
 		},
-		Context: req.GetContext(),
+		CallContext: req.GetContext(),
 	}
 	response, err := kbClient.GetAccount(ctx, accountRequest)
 	if err != nil {
