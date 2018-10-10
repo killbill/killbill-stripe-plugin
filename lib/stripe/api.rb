@@ -26,7 +26,7 @@ module Killbill #:nodoc:
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
         options = {}
-        populate_defaults(pm, amount, properties, context, options)
+        populate_defaults(pm, amount, currency, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -44,7 +44,7 @@ module Killbill #:nodoc:
         pm = @payment_method_model.from_kb_payment_method_id(kb_payment_method_id, context.tenant_id)
 
         options = {}
-        populate_defaults(pm, amount, properties, context, options)
+        populate_defaults(pm, amount, currency, properties, context, options)
 
         properties = merge_properties(properties, options)
         super(kb_account_id, kb_payment_id, kb_payment_transaction_id, kb_payment_method_id, amount, currency, properties, context)
@@ -237,10 +237,10 @@ module Killbill #:nodoc:
         end
       end
 
-      def populate_defaults(pm, amount, properties, context, options)
+      def populate_defaults(pm, amount, currency, properties, context, options)
         options[:customer] ||= pm.stripe_customer_id
         options[:destination] ||= get_destination(properties, context)
-        options[:application_fee] ||= get_application_fee(amount, properties) unless options[:destination].nil?
+        options[:application_fee] ||= get_application_fee(amount, currency, properties) unless options[:destination].nil?
       end
 
       def get_destination(properties, context)
@@ -255,14 +255,16 @@ module Killbill #:nodoc:
         end
       end
 
-      def get_application_fee(amount, properties)
+      def get_application_fee(amount, currency, properties)
         fees_amount = find_value_from_properties(properties, :fees_amount)
         return fees_amount unless fees_amount.nil?
 
-        fees_percent = find_value_from_properties(properties, :fees_percent)
-        return (fees_percent * amount * 100).to_i unless fees_percent.nil?
+        amount_in_cents = ::Monetize.from_numeric(amount, currency).cents.to_i
 
-        config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount * 100)
+        fees_percent = find_value_from_properties(properties, :fees_percent)
+        return (fees_percent * amount_in_cents).to_i unless fees_percent.nil?
+
+        config(context.tenant_id)[:stripe][:fees_amount] || (config(context.tenant_id)[:stripe][:fees_percent].to_f * amount_in_cents)
       end
 
       def is_bank_account?(properties)
