@@ -82,25 +82,27 @@ describe Killbill::Stripe::PaymentPlugin do
     response.success.should be_true
   end
 
-  it 'should be able to charge a Credit Card directly' do
-    properties = build_pm_properties(nil, { :token => @pm.token })
+  [:USD, :JPY].each do |currency|
+    it "should be able to charge a Credit Card directly with #{currency}" do
+      properties = build_pm_properties(nil, { :token => @pm.token })
 
-    # We created the payment methods, hence the rows
-    nb_responses = Killbill::Stripe::StripeResponse.count
-    Killbill::Stripe::StripeTransaction.all.size.should == 0
+      # We created the payment methods, hence the rows
+      nb_responses = Killbill::Stripe::StripeResponse.count
+      Killbill::Stripe::StripeTransaction.all.size.should == 0
 
-    payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, @currency, properties, @call_context)
-    payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
-    payment_response.amount.should == @amount
-    payment_response.transaction_type.should == :PURCHASE
+      payment_response = @plugin.purchase_payment(@pm.kb_account_id, @kb_payment.id, @kb_payment.transactions[0].id, @pm.kb_payment_method_id, @amount, currency, properties, @call_context)
+      payment_response.status.should eq(:PROCESSED), payment_response.gateway_error
+      payment_response.amount.should == @amount
+      payment_response.transaction_type.should == :PURCHASE
 
-    responses = Killbill::Stripe::StripeResponse.all
-    responses.size.should == nb_responses + 1
-    responses[nb_responses].api_call.should == 'purchase'
-    responses[nb_responses].message.should == 'Transaction approved'
-    transactions = Killbill::Stripe::StripeTransaction.all
-    transactions.size.should == 1
-    transactions[0].api_call.should == 'purchase'
+      responses = Killbill::Stripe::StripeResponse.all
+      responses.size.should == nb_responses + 1
+      responses[nb_responses].api_call.should == 'purchase'
+      responses[nb_responses].message.should == 'Transaction approved'
+      transactions = Killbill::Stripe::StripeTransaction.all
+      transactions.size.should == 1
+      transactions[0].api_call.should == 'purchase'
+    end
   end
 
   it 'should be able to charge and refund' do

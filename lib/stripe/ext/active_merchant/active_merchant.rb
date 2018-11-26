@@ -42,6 +42,13 @@ module ActiveMerchant
         headers
       end
 
+      # Ignore the call to localized_amount upstream (money is already cents here)
+      def add_amount(post, money, options, include_currency = false)
+        currency = options[:currency] || currency(money)
+        post[:amount] = money
+        post[:currency] = currency.downcase if include_currency
+      end
+
       # To create a charge on a card or a token, call
       #
       #   purchase(money, card_hash_or_token, { ... })
