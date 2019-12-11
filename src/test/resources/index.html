@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+<script>
+var sessionId = prompt("Please enter your seesion ID", "");
+if (sessionId == null || sessionId == "") {
+      txt = "User cancelled the prompt.";
+} else {
+    var stripe = Stripe('pk_test_XXX');
+    stripe.redirectToCheckout({
+      // Make the id field from the Checkout Session creation API response
+      // available to this file, so you can provide it as parameter here
+      // instead of the {{CHECKOUT_SESSION_ID}} placeholder.
+      sessionId: sessionId
+    }).then(function (result) {
+      // If `redirectToCheckout` fails due to a browser or network
+      // error, display the localized error message to your customer
+      // using `result.error.message`.
+    });
+}
+</script>
+</body>
+</html>
