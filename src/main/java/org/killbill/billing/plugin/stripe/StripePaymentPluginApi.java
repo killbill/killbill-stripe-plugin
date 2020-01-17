@@ -20,8 +20,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -346,6 +348,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         // Sync Stripe payment methods (source of truth)
         final RequestOptions requestOptions = buildRequestOptions(context);
+
+        // Track the objects (the various Stripe APIs can return the same objects under a different type)
+        final Set<String> stripeObjectsTreated = new HashSet<String>();
         try {
             // Start with PaymentMethod...
             final Map<String, Object> paymentMethodParams = new HashMap<String, Object>();
@@ -353,11 +358,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             // Only supported type by Stripe for now
             paymentMethodParams.put("type", "card");
             final Iterable<PaymentMethod> stripePaymentMethods = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, context);
+            syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
             final Iterable<? extends HasId> stripeSources = Customer.retrieve(stripeCustomerId, requestOptions).getSources().autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, context);
+            syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Error connecting to Stripe", e);
         } catch (final PaymentApiException e) {
@@ -375,8 +380,14 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         return super.getPaymentMethods(kbAccountId, false, properties, context);
     }
 
-    private void syncPaymentMethods(final UUID kbAccountId, final Iterable<? extends HasId> stripeObjects, final Map<String, StripePaymentMethodsRecord> existingPaymentMethodByStripeId, final CallContext context) throws PaymentApiException, SQLException {
+    private void syncPaymentMethods(final UUID kbAccountId, final Iterable<? extends HasId> stripeObjects, final Map<String, StripePaymentMethodsRecord> existingPaymentMethodByStripeId, final Set<String> stripeObjectsTreated, final CallContext context) throws PaymentApiException, SQLException {
         for (final HasId stripeObject : stripeObjects) {
+            if (stripeObjectsTreated.contains(stripeObject.getId())) {
+                continue;
+            } else {
+                stripeObjectsTreated.add(stripeObject.getId());
+            }
+
             final Map<String, Object> additionalDataMap;
             if (stripeObject instanceof PaymentMethod) {
                 additionalDataMap = StripePluginProperties.toAdditionalDataMap((PaymentMethod) stripeObject);
@@ -386,6 +397,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 throw new UnsupportedOperationException("Unsupported object: " + stripeObject);
             }
 
+            // We remove it here to build the list of local payment methods to delete
             final StripePaymentMethodsRecord existingPaymentMethodRecord = existingPaymentMethodByStripeId.remove(stripeObject.getId());
             if (existingPaymentMethodRecord == null) {
                 // We don't know about it yet, create it
