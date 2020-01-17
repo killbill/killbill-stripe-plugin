@@ -90,8 +90,7 @@ public class StripeActivator extends KillbillActivatorBase {
     }
 
     public void registerHandlers() {
-        final PluginConfigurationEventHandler handler = new PluginConfigurationEventHandler(
-                stripeConfigPropertiesConfigurationHandler);
+        final PluginConfigurationEventHandler handler = new PluginConfigurationEventHandler(stripeConfigPropertiesConfigurationHandler);
         dispatcher.registerEventHandlers(handler);
     }
 
