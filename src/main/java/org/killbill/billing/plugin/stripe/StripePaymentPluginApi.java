@@ -414,7 +414,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                              ImmutableList.<PluginProperty>of(),
                                                              context);
             } else {
-                logger.info("Updating existing local Stripe payment method {}", stripeObject);
+                logger.info("Updating existing local Stripe payment method {}", stripeObject.getId());
                 dao.updatePaymentMethod(UUID.fromString(existingPaymentMethodRecord.getKbPaymentMethodId()),
                                         additionalDataMap,
                                         stripeObject.getId(),
