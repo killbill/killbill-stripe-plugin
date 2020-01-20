@@ -27,6 +27,7 @@ import com.stripe.model.PaymentMethod.Card;
 import com.stripe.model.PaymentSource;
 import com.stripe.model.Source;
 import com.stripe.model.Source.AchDebit;
+import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 
 // Stripe .toJson() is definitively not GDPR-friendly...
@@ -100,6 +101,16 @@ public abstract class StripePluginProperties {
         }
 
         return additionalDataMap;
+    }
+
+    public static Map<String, Object> toAdditionalDataMap(final Token token) {
+        if (token.getCard() != null) {
+            return toAdditionalDataMap(token.getCard());
+        } else if (token.getBankAccount() != null) {
+            return toAdditionalDataMap(token.getBankAccount());
+        } else {
+            throw new UnsupportedOperationException("Not yet supported: " + token);
+        }
     }
 
     public static Map<String, Object> toAdditionalDataMap(final PaymentMethod stripePaymentMethod) {
