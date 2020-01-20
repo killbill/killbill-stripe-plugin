@@ -16,6 +16,7 @@
 
 package org.killbill.billing.plugin.stripe;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.inject.Named;
@@ -29,6 +30,7 @@ import org.jooby.mvc.Local;
 import org.jooby.mvc.POST;
 import org.jooby.mvc.Path;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillClock;
+import org.killbill.billing.payment.api.PluginProperty;
 import org.killbill.billing.payment.plugin.api.HostedPaymentPageFormDescriptor;
 import org.killbill.billing.payment.plugin.api.PaymentPluginApiException;
 import org.killbill.billing.plugin.api.PluginCallContext;
@@ -57,10 +59,12 @@ public class StripeCheckoutServlet extends PluginHealthcheck {
 
     @POST
     public Result createSession(@Named("kbAccountId") final UUID kbAccountId,
+                                @Named("successUrl") final Optional<String> successUrl,
                                 @Local @Named("killbill_tenant") final Tenant tenant) throws JsonProcessingException, PaymentPluginApiException {
         final CallContext context = new PluginCallContext(StripeActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());
+        final ImmutableList<PluginProperty> customFields = ImmutableList.of(new PluginProperty("success_url", successUrl.orElse("https://example.com/success"), false));
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
-                                                                                                                           ImmutableList.of(),
+                                                                                                                           customFields,
                                                                                                                            ImmutableList.of(),
                                                                                                                            context);
         return Results.with(hostedPaymentPageFormDescriptor, Status.CREATED)
