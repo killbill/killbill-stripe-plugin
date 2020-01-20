@@ -400,9 +400,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         for (final HasId stripeObject : stripeObjects) {
             if (stripeObjectsTreated.contains(stripeObject.getId())) {
                 continue;
-            } else {
-                stripeObjectsTreated.add(stripeObject.getId());
             }
+            stripeObjectsTreated.add(stripeObject.getId());
 
             final Map<String, Object> additionalDataMap;
             if (stripeObject instanceof PaymentMethod) {
