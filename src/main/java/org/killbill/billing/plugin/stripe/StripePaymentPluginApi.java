@@ -20,8 +20,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -75,6 +77,7 @@ import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentSource;
 import com.stripe.model.Refund;
 import com.stripe.model.Source;
+import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 
@@ -198,10 +201,20 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     @Override
     public void addPaymentMethod(final UUID kbAccountId, final UUID kbPaymentMethodId, final PaymentMethodPlugin paymentMethodProps, final boolean setDefault, final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-
         final RequestOptions requestOptions = buildRequestOptions(context);
 
-        final String sessionId = PluginProperties.findPluginPropertyValue("sessionId", properties);
+        // Support both body and query parameters based plugin properties
+        final Iterable<PluginProperty> allProperties = PluginProperties.merge(paymentMethodProps.getProperties(), properties);
+
+        String paymentMethodIdInStripe = paymentMethodProps.getExternalPaymentMethodId();
+        String objectType = PluginProperties.getValue("object", "payment_method", allProperties);
+        if (paymentMethodIdInStripe == null) {
+            // Support also a token plugin property as it is a bit easier to pass it in cURLs (also sent by kbcmd in the body)
+            paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("token", allProperties);
+            objectType = "token";
+        }
+
+        final String sessionId = PluginProperties.findPluginPropertyValue("sessionId", allProperties);
         if (sessionId != null) {
             // Checkout flow
             try {
@@ -230,9 +243,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         throw new PaymentPluginApiException("USER", "Unable to add payment method : paymentIntent customerId is " + paymentIntent.getCustomer() + " but account already mapped to " + existingCustomerId);
                     }
 
-                    // Go through sync logic
-                    getPaymentMethods(kbAccountId, true, ImmutableList.of(), context);
-                    return;
+                    // Used below to create the row in the plugin
+                    // TODO This implicitly assumes the payment method type if "payment_method", is this always true?
+                    paymentMethodIdInStripe = paymentIntent.getPaymentMethod();
                 } else {
                     throw new PaymentPluginApiException("EXTERNAL", "Unable to add payment method: paymentIntent is " + paymentIntent.getStatus());
                 }
@@ -247,21 +260,27 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         final Map<String, Object> additionalDataMap;
         final String stripeId;
-        if (paymentMethodProps.getExternalPaymentMethodId() != null) {
-            final String objectType = PluginProperties.getValue("object", "payment_method", paymentMethodProps.getProperties());
+        if (paymentMethodIdInStripe != null) {
             if ("payment_method".equals(objectType)) {
                 try {
-                    // The Stripe paymentMethodId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
-                    final PaymentMethod stripePaymentMethod = PaymentMethod.retrieve(paymentMethodProps.getExternalPaymentMethodId(), requestOptions);
+                    final PaymentMethod stripePaymentMethod = PaymentMethod.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentMethod);
                     stripeId = stripePaymentMethod.getId();
+                } catch (final StripeException e) {
+                    throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
+                }
+            } else if ("token".equals(objectType)) {
+                try {
+                    final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
+                    additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
+                    stripeId = stripeToken.getId();
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
             } else if ("source".equals(objectType)) {
                 try {
                     // The Stripe sourceId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
-                    final Source stripeSource = Source.retrieve(paymentMethodProps.getExternalPaymentMethodId(), requestOptions);
+                    final Source stripeSource = Source.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSource);
                     stripeId = stripeSource.getId();
                 } catch (final StripeException e) {
@@ -273,7 +292,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final String existingCustomerId = getCustomerId(kbAccountId, context);
                     final PaymentSource paymentSource = Customer.retrieve(existingCustomerId, requestOptions)
                                                                 .getSources()
-                                                                .retrieve(paymentMethodProps.getExternalPaymentMethodId(), requestOptions);
+                                                                .retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(paymentSource);
                     stripeId = paymentSource.getId();
                 } catch (final StripeException e) {
@@ -345,6 +364,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         // Sync Stripe payment methods (source of truth)
         final RequestOptions requestOptions = buildRequestOptions(context);
+
+        // Track the objects (the various Stripe APIs can return the same objects under a different type)
+        final Set<String> stripeObjectsTreated = new HashSet<String>();
         try {
             // Start with PaymentMethod...
             final Map<String, Object> paymentMethodParams = new HashMap<String, Object>();
@@ -352,11 +374,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             // Only supported type by Stripe for now
             paymentMethodParams.put("type", "card");
             final Iterable<PaymentMethod> stripePaymentMethods = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, context);
+            syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
             final Iterable<? extends HasId> stripeSources = Customer.retrieve(stripeCustomerId, requestOptions).getSources().autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, context);
+            syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Error connecting to Stripe", e);
         } catch (final PaymentApiException e) {
@@ -374,8 +396,13 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         return super.getPaymentMethods(kbAccountId, false, properties, context);
     }
 
-    private void syncPaymentMethods(final UUID kbAccountId, final Iterable<? extends HasId> stripeObjects, final Map<String, StripePaymentMethodsRecord> existingPaymentMethodByStripeId, final CallContext context) throws PaymentApiException, SQLException {
+    private void syncPaymentMethods(final UUID kbAccountId, final Iterable<? extends HasId> stripeObjects, final Map<String, StripePaymentMethodsRecord> existingPaymentMethodByStripeId, final Set<String> stripeObjectsTreated, final CallContext context) throws PaymentApiException, SQLException {
         for (final HasId stripeObject : stripeObjects) {
+            if (stripeObjectsTreated.contains(stripeObject.getId())) {
+                continue;
+            }
+            stripeObjectsTreated.add(stripeObject.getId());
+
             final Map<String, Object> additionalDataMap;
             if (stripeObject instanceof PaymentMethod) {
                 additionalDataMap = StripePluginProperties.toAdditionalDataMap((PaymentMethod) stripeObject);
@@ -385,6 +412,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 throw new UnsupportedOperationException("Unsupported object: " + stripeObject);
             }
 
+            // We remove it here to build the list of local payment methods to delete
             final StripePaymentMethodsRecord existingPaymentMethodRecord = existingPaymentMethodByStripeId.remove(stripeObject.getId());
             if (existingPaymentMethodRecord == null) {
                 // We don't know about it yet, create it
@@ -401,7 +429,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                              ImmutableList.<PluginProperty>of(),
                                                              context);
             } else {
-                logger.info("Updating existing local Stripe payment method {}", stripeObject);
+                logger.info("Updating existing local Stripe payment method {}", stripeObject.getId());
                 dao.updatePaymentMethod(UUID.fromString(existingPaymentMethodRecord.getKbPaymentMethodId()),
                                         additionalDataMap,
                                         stripeObject.getId(),
@@ -635,7 +663,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                                    final Currency currency,
                                                                    final Iterable<PluginProperty> properties,
                                                                    final CallContext context) throws PaymentPluginApiException {
-        final String customerId = getCustomerId(kbAccountId, context);
+        final String customerId = getCustomerIdNoException(kbAccountId, context);
         return executeInitialTransaction(transactionType,
                                          new TransactionExecutor<PaymentIntent>() {
                                              @Override
@@ -649,19 +677,28 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                  // TODO Do we need to switch to manual confirmation to be able to set off_session=recurring?
                                                  paymentIntentParams.put("confirm", true);
                                                  paymentIntentParams.put("confirmation_method", "manual");
-                                                 paymentIntentParams.put("customer", customerId);
+                                                 if (customerId != null) {
+                                                     paymentIntentParams.put("customer", customerId);
+                                                 }
                                                  paymentIntentParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
                                                                                                      "kbPaymentId", kbPaymentId,
                                                                                                      "kbTransactionId", kbTransactionId,
                                                                                                      "kbPaymentMethodId", kbPaymentMethodId));
 
                                                  final Map additionalData = StripeDao.fromAdditionalData(paymentMethodsRecord.getAdditionalData());
-                                                 final String objectType = MoreObjects.firstNonNull((String) additionalData.get("object"), "payment_method");
-                                                 if ("payment_method".equals(objectType)) {
-                                                     paymentIntentParams.put(objectType, paymentMethodsRecord.getStripeId());
+                                                 if (paymentMethodsRecord.getStripeId().startsWith("tok")) {
+                                                     // https://github.com/stripe/stripe-java/issues/821
+                                                     paymentIntentParams.put("payment_method_data", ImmutableMap.of("type", "card",
+                                                                                                                    "card", ImmutableMap.of("token", paymentMethodsRecord.getStripeId())));
                                                  } else {
-                                                     paymentIntentParams.put("source", paymentMethodsRecord.getStripeId());
+                                                     final String objectType = MoreObjects.firstNonNull((String) additionalData.get("object"), "payment_method");
+                                                     if ("payment_method".equals(objectType)) {
+                                                         paymentIntentParams.put(objectType, paymentMethodsRecord.getStripeId());
+                                                     } else {
+                                                         paymentIntentParams.put("source", paymentMethodsRecord.getStripeId());
+                                                     }
                                                  }
+
                                                  paymentIntentParams.put("payment_method_types", ImmutableList.of("card", "ach_debit"));
 
                                                  final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());

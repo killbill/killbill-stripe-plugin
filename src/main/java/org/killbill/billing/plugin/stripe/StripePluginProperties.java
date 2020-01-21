@@ -27,6 +27,7 @@ import com.stripe.model.PaymentMethod.Card;
 import com.stripe.model.PaymentSource;
 import com.stripe.model.Source;
 import com.stripe.model.Source.AchDebit;
+import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 
 // Stripe .toJson() is definitively not GDPR-friendly...
@@ -35,7 +36,20 @@ public abstract class StripePluginProperties {
     public static Map<String, Object> toAdditionalDataMap(final PaymentSource stripePaymentSource) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
-        if (stripePaymentSource instanceof Source) {
+        if (stripePaymentSource instanceof com.stripe.model.Card) {
+            final com.stripe.model.Card card = (com.stripe.model.Card) stripePaymentSource;
+            additionalDataMap.put("card_brand", card.getBrand());
+            additionalDataMap.put("card_address_line1_check", card.getAddressLine1Check());
+            additionalDataMap.put("card_address_postal_code_check", card.getAddressZipCheck());
+            additionalDataMap.put("card_cvc_check", card.getCvcCheck());
+            additionalDataMap.put("card_country", card.getCountry());
+            additionalDataMap.put("card_description", card.getName());
+            additionalDataMap.put("card_exp_month", card.getExpMonth());
+            additionalDataMap.put("card_exp_year", card.getExpYear());
+            additionalDataMap.put("card_fingerprint", card.getFingerprint());
+            additionalDataMap.put("card_funding", card.getFunding());
+            additionalDataMap.put("card_last4", card.getLast4());
+        } else if (stripePaymentSource instanceof Source) {
             final Source stripeSource = (Source) stripePaymentSource;
             final Source.Card card = stripeSource.getCard();
             if (card != null) {
@@ -87,6 +101,16 @@ public abstract class StripePluginProperties {
         }
 
         return additionalDataMap;
+    }
+
+    public static Map<String, Object> toAdditionalDataMap(final Token token) {
+        if (token.getCard() != null) {
+            return toAdditionalDataMap(token.getCard());
+        } else if (token.getBankAccount() != null) {
+            return toAdditionalDataMap(token.getBankAccount());
+        } else {
+            throw new UnsupportedOperationException("Not yet supported: " + token);
+        }
     }
 
     public static Map<String, Object> toAdditionalDataMap(final PaymentMethod stripePaymentMethod) {

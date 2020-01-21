@@ -63,7 +63,7 @@ To charge a payment instrument (card, bank account, etc.), you first need to col
 
 _Use this method if you don't want to generate your own form to tokenize cards._
 
-To save credit cards using https://stripe.com/docs/payments/checkout[Stripe Checkout]:
+To save credit cards using [Stripe Checkout](https://stripe.com/docs/payments/checkout):
 
 1. Create a Kill Bill account
 2. Call `/plugins/killbill-stripe/checkout` to generate a Session:
@@ -102,7 +102,7 @@ curl -v \
 
 ### Other methods
 
-If you are using https://stripe.com/docs/stripe-js/elements/quickstart[Stripe Elements] or storing payment methods in Stripe via any other way (or if you want to migrate from another billing system and already have customers in Stripe), the flow to setup Kill Bill accounts is as follows:
+If you are using [Stripe Elements](https://stripe.com/docs/stripe-js/elements/quickstart) or storing payment methods in Stripe via any other way (or if you want to migrate from another billing system and already have customers in Stripe), the flow to setup Kill Bill accounts is as follows:
 
 1. Create a Kill Bill account
 2. Attach the custom field `STRIPE_CUSTOMER_ID` to the Kill Bill account. The custom field value should be the Stripe customer id
