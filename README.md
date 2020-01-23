@@ -1,14 +1,12 @@
-killbill-stripe-plugin
-======================
+# killbill-stripe-plugin
 
 Plugin to use [Stripe](https://stripe.com/) as a gateway.
 
-Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.ruby%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.ruby:stripe-plugin`.
+Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.java%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.java:stripe-plugin`.
 
 A full end-to-end integration demo is available [here](https://github.com/killbill/killbill-stripe-demo).
 
-Kill Bill compatibility
------------------------
+## Kill Bill compatibility
 
 | Plugin version | Kill Bill version  | Stripe version                                            |
 | -------------: | -----------------: | --------------------------------------------------------: |
@@ -17,16 +15,35 @@ Kill Bill compatibility
 | 4.x.y          | 0.18.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 5.x.y          | 0.19.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 6.x.y          | 0.20.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
+| 7.x.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
 
-Requirements
-------------
+**Note**: upgrading from 6.x.y to 7.x.y is currently not documented and therefore not recommended. Users running 6.x.y in production and wishing to upgrade should contact the core team on the support forum for guidance.
 
-The plugin needs a database. The latest version of the schema can be found [here](https://github.com/killbill/killbill-stripe-plugin/blob/master/db/ddl.sql).
+## Requirements
 
-Configuration
--------------
+The plugin needs a database. The latest version of the schema can be found [here](https://github.com/killbill/killbill-stripe-plugin/blob/master/src/main/resources/ddl.sql).
+
+## Installation
+
+Locally:
 
 ```
+kpm install_java_plugin stripe --from-source-file=target/stripe-plugin-7.0.0-SNAPSHOT.jar --destination=/var/tmp/bundles
+```
+
+## Configuration
+
+Go to https://dashboard.stripe.com/test/apikeys and copy your `Secret key`.
+
+Then, go to the Kaui plugin configuration page (`/admin_tenants/1?active_tab=PluginConfig`), and configure the `stripe` plugin with your key:
+
+```java
+org.killbill.billing.plugin.stripe.apiKey=sk_test_XXX
+```
+
+Alternatively, you can upload the configuration directly:
+
+```bash
 curl -v \
      -X POST \
      -u admin:password \
@@ -34,145 +51,86 @@ curl -v \
      -H 'X-Killbill-ApiSecret: lazar' \
      -H 'X-Killbill-CreatedBy: admin' \
      -H 'Content-Type: text/plain' \
-     -d ':stripe:
-  :api_secret_key: "your-secret-key"
-  :api_publishable_key: "your-publishable-key"
-  :fees_amount: "default-fees-amount-for-connect"
-  :fees_percent: "default-fees-percent-for-connect"' \
+     -d 'org.killbill.billing.plugin.stripe.apiKey=sk_test_XXX' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
-To get your credentials:
+## Payment Method flow
 
-1. Go to [stripe.com](http://stripe.com/) and create an account. This account will be used as a sandbox environment for testing.
-2. In your Stripe account, click on **Your Account** (top right), then click on **Account Settings** and then on the **API Keys** tab. Write down your keys.
+To charge a payment instrument (card, bank account, etc.), you first need to collect the payment instrument details in Stripe and create an associated payment method in Kill Bill.
 
-For Connect, you can configure a default fees amount (`fees_amount`) or percentage (`fees_percent`, such as .3 for 30%). These can be modified on a per request basis by passing the plugin property `fees_amount` or `fees_percent`.
-You'll also need to add a row to the `stripe_application_fees` table and add a percent (such as .3 for 30%) to the `application_fee` field.
+### Using Stripe Checkout
 
-To go to production, create a `stripe.yml` configuration file under `/var/tmp/bundles/plugins/ruby/killbill-stripe/x.y.z/` containing the following:
+_Use this method if you don't want to generate your own form to tokenize cards._
 
-```
-:stripe:
-  :test: false
-```
+To save credit cards using [Stripe Checkout](https://stripe.com/docs/payments/checkout):
 
-Usage
------
-
-You would typically implement [Stripe.js](https://stripe.com/docs/stripe.js) to tokenize credit cards. 
-
-After receiving the token from Stripe, create a Kill Bill payment method associated with it as such:
-
-```
+1. Create a Kill Bill account
+2. Call `/plugins/killbill-stripe/checkout` to generate a Session:
+```bash
 curl -v \
      -X POST \
      -u admin:password \
-     -H 'X-Killbill-ApiKey: bob' \
-     -H 'X-Killbill-ApiSecret: lazar' \
-     -H 'X-Killbill-CreatedBy: admin' \
-     -H 'Content-Type: application/json' \
-     -d '{
-       "pluginName": "killbill-stripe",
-       "pluginInfo": {
-         "properties": [{
-           "key": "token",
-           "value": "tok_20G53990M6953444J"
-         }]
-       }
-     }' \
-     "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?isDefault=true"
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "X-Killbill-CreatedBy: demo" \
+     -H "X-Killbill-Reason: demo" \
+     -H "X-Killbill-Comment: demo" \
+     "http://127.0.0.1:8080/plugins/killbill-stripe/checkout?kbAccountId=<KB_ACCOUNT_ID>"
+```
+3. Redirect the user to the Stripe checkout page. The `sessionId` is returned as part of the `formFields` (`id` key):
+```javascript
+stripe.redirectToCheckout({ sessionId: 'cs_test_XXX' });
+```
+4. After entering the credit card, a $1 authorization will be triggered. Call `addPaymentMethod` to create the Stripe payment method and pass the `sessionId` in the plugin properties. This will void the authorization (if successful) and store the payment method in Kill Bill:
+```bash
+curl -v \
+     -X POST \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "X-Killbill-CreatedBy: demo" \
+     -H "X-Killbill-Reason: demo" \
+     -H "X-Killbill-Comment: demo" \
+     -d "{ \"pluginName\": \"killbill-stripe\"}" \
+     "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?pluginProperty=sessionId=cs_test_XXX"
 ```
 
-An example implementation is exposed at:
+### Other methods
 
+If you are using [Stripe Elements](https://stripe.com/docs/stripe-js/elements/quickstart) or storing payment methods in Stripe via any other way (or if you want to migrate from another billing system and already have customers in Stripe), the flow to setup Kill Bill accounts is as follows:
+
+1. Create a Kill Bill account
+2. Attach the custom field `STRIPE_CUSTOMER_ID` to the Kill Bill account. The custom field value should be the Stripe customer id
+```bash
+curl -v \
+     -X POST \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "X-Killbill-CreatedBy: demo" \
+     -H "X-Killbill-Reason: demo" \
+     -H "X-Killbill-Comment: demo" \
+     -d "[ { \"objectType\": \"ACCOUNT\", \"name\": \"STRIPE_CUSTOMER_ID\", \"value\": \"cus_XXXXX\" }]" \
+     "http://127.0.0.1:8080/1.0/kb/accounts/<ACCOUNT_ID>/customFields"
 ```
-http://127.0.0.1:8080/plugins/killbill-stripe?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
+3. Sync the payment methods from Stripe to Kill Bill:
+```bash
+curl -v \
+     -X PUT \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "X-Killbill-CreatedBy: demo" \
+     -H "X-Killbill-Reason: demo" \
+     -H "X-Killbill-Comment: demo" \
+     "http://127.0.0.1:8080/1.0/kb/accounts/<ACCOUNT_ID>/paymentMethods/refresh"
 ```
-
-After entering you credit card, this demo page will:
-
-* Tokenize it in Stripe (JS call)
-* Call Kill Bill during the redirect to create a payment method for that token
-* Output the result of the tokenization call
-
-### Connect
-
-Managed accounts must first have their own account in Kill Bill. Then, create them in Stripe using `POST /plugins/killbill-stripe/accounts`:
-
-```
-curl -v -X POST \
-     -d '{
-       "legal_entity": {
-         "address": {
-           "city": "San Francisco",
-           "country": "US"
-         },
-         "dob": {
-           "day": 31,
-           "month": 12,
-           "year": 1969
-         },
-         "first_name": "Jane",
-         "last_name": "Doe"",
-         "type": "individual"
-     }' \
-     http://127.0.0.1:8080/plugins/killbill-stripe/accounts?kb_account_id=<KB_ACCOUNT_ID>&kb_tenant_id=<KB_TENANT_ID>
-```
-
-When charging customers, you can now pass the Kill Bill account id of the managed account as the `destination` plugin property.
-
-See the [Stripe documentation](https://stripe.com/docs/connect/managed-accounts#creating-a-managed-account) for more details.
-
-### ACH payments
-
-You can also add, verify and charge bank accounts directly. Like credit cards, you would typically first use [Stripe.js](https://stripe.com/docs/stripe.js) to tokenize a bank account. Unlike credit cards bank accounts need to be verified by confirming the amounts of 2 microdeposits sent to the account. After receiving the amounts, you can verify the bank account as such:
-
-```
-curl -v -X POST \
-     -d '[<VERIFICATION AMOUNT 1>, <VERIFICATION AMOUNT 2>]' \
-     http://127.0.0.1:8080/plugins/killbill-stripe/verify
-```
-
-See the [Stripe documentation](https://stripe.com/docs/ach) for more details.
-
-
-Plugin properties
------------------
-
-| Key                          | Description                                                       |
-| ---------------------------: | ----------------------------------------------------------------- |
-| skip_gw                      | If true, skip the call to Stripe                                  |
-| payment_processor_account_id | Config entry name of the merchant account to use                  |
-| external_key_as_order_id     | If true, set the payment external key as the Stripe order id      |
-| customer                     | Stripe customer id                                                |
-| token                        | Stripe token                                                      |
-| cc_first_name                | Credit card holder first name                                     |
-| cc_last_name                 | Credit card holder last name                                      |
-| cc_type                      | Credit card brand                                                 |
-| cc_expiration_month          | Credit card expiration month                                      |
-| cc_expiration_year           | Credit card expiration year                                       |
-| cc_verification_value        | CVC/CVV/CVN                                                       |
-| email                        | Purchaser email                                                   |
-| address1                     | Billing address first line                                        |
-| address2                     | Billing address second line                                       |
-| city                         | Billing address city                                              |
-| zip                          | Billing address zip code                                          |
-| state                        | Billing address state                                             |
-| country                      | Billing address country                                           |
-| eci                          | Network tokenization attribute                                    |
-| payment_cryptogram           | Network tokenization attribute                                    |
-| transaction_id               | Network tokenization attribute                                    |
-| payment_instrument_name      | ApplePay tokenization attribute                                   |
-| payment_network              | ApplePay tokenization attribute                                   |
-| transaction_identifier       | ApplePay tokenization attribute                                   |
-| destination                  | [Connect] KB account id of the receiving account                  |
-| fees_amount                  | [Connect] Amount in cents of fees to collect                      |
-| fees_percent                 | [Connect] Percentage amount of fees to collect                    |
-| reverse_transfer             | [Connect] True if the transfer should be reversed when refunding  |
-| refund_application_fee       | [Connect] True if fees should be refunded when refunding          |
-| source_type                  | Credit card or bank account                                       |
-| bank_name                    | Bank name                                                         |
-| bank_routing_number          | Bank account routing number                                       |
-| bank_account_first_name      | Bank account holder first name                                    |
-| bank_account_last_name       | Bank account holder last name                                     |
