@@ -209,7 +209,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         if (paymentMethodIdInStripe == null) {
             // Support also a token plugin property as it is a bit easier to pass it in cURLs (also sent by kbcmd in the body)
             paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("token", allProperties);
-            objectType = "token";
+            if (paymentMethodIdInStripe != null) {
+                objectType = "token";
+            } // Otherwise, defaults to payment_method (session flow)
         }
 
         final String sessionId = PluginProperties.findPluginPropertyValue("sessionId", allProperties);

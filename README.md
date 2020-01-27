@@ -100,6 +100,27 @@ curl -v \
      "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?pluginProperty=sessionId=cs_test_XXX"
 ```
 
+### Using tokens
+
+If you have a [token](https://stripe.com/docs/api/tokens), you can pass it directly to `addPaymentMethod` in the plugin properties:
+
+```bash
+curl -v \
+     -X POST \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json" \
+     -H "X-Killbill-CreatedBy: demo" \
+     -H "X-Killbill-Reason: demo" \
+     -H "X-Killbill-Comment: demo" \
+     -d "{ \"pluginName\": \"killbill-stripe\"}" \
+     "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?pluginProperty=token=tok_XXX"
+```
+
+Take a look at [kbcmd](https://github.com/killbill/kbcli/blob/master/docs/kbcmd/kbcmd-walkthrough.md) for a step-by-step walkthrough.
+
 ### Other methods
 
 If you are using [Stripe Elements](https://stripe.com/docs/stripe-js/elements/quickstart) or storing payment methods in Stripe via any other way (or if you want to migrate from another billing system and already have customers in Stripe), the flow to setup Kill Bill accounts is as follows:
