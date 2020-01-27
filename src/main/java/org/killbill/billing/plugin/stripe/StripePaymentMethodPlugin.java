@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -23,7 +23,6 @@ import java.util.UUID;
 import org.killbill.billing.payment.api.PluginProperty;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginPaymentMethodPlugin;
-
 import org.killbill.billing.plugin.stripe.dao.StripeDao;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripePaymentMethodsRecord;
 
@@ -35,15 +34,17 @@ public class StripePaymentMethodPlugin extends PluginPaymentMethodPlugin {
 
         return new StripePaymentMethodPlugin(UUID.fromString(stripePaymentMethodsRecord.getKbPaymentMethodId()),
                                              externalPaymentMethodId,
+                                             stripePaymentMethodsRecord.getIsDefault() == StripeDao.TRUE,
                                              PluginProperties.buildPluginProperties(additionalData));
     }
 
     public StripePaymentMethodPlugin(final UUID kbPaymentMethodId,
                                      final String externalPaymentMethodId,
+                                     final boolean isDefault,
                                      final List<PluginProperty> properties) {
         super(kbPaymentMethodId,
               externalPaymentMethodId,
-              false,
+              isDefault,
               properties);
     }
 }

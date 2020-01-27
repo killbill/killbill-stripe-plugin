@@ -38,6 +38,7 @@ create table stripe_payment_methods (
 , kb_account_id char(36) not null
 , kb_payment_method_id char(36) not null
 , stripe_id varchar(255) not null
+, is_default smallint not null default 0
 , is_deleted smallint not null default 0
 , additional_data longtext default null
 , created_date datetime not null
