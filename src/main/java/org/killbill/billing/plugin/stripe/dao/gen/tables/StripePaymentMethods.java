@@ -52,7 +52,7 @@ import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripePaymentMe
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class StripePaymentMethods extends TableImpl<StripePaymentMethodsRecord> {
 
-    private static final long serialVersionUID = -1625978162;
+    private static final long serialVersionUID = -656511110;
 
     /**
      * The reference instance of <code>killbill.stripe_payment_methods</code>
@@ -86,6 +86,11 @@ public class StripePaymentMethods extends TableImpl<StripePaymentMethodsRecord> 
      * The column <code>killbill.stripe_payment_methods.stripe_id</code>.
      */
     public final TableField<StripePaymentMethodsRecord, String> STRIPE_ID = createField("stripe_id", org.jooq.impl.SQLDataType.VARCHAR.length(255).nullable(false), this, "");
+
+    /**
+     * The column <code>killbill.stripe_payment_methods.is_default</code>.
+     */
+    public final TableField<StripePaymentMethodsRecord, Short> IS_DEFAULT = createField("is_default", org.jooq.impl.SQLDataType.SMALLINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.SMALLINT)), this, "");
 
     /**
      * The column <code>killbill.stripe_payment_methods.is_deleted</code>.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -180,6 +180,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             // Known in KB but deleted in Stripe?
             return new StripePaymentMethodPlugin(kbPaymentMethodId,
                                                  null,
+                                                 false,
                                                  ImmutableList.<PluginProperty>of());
         } else {
             return buildPaymentMethodPlugin(record);
@@ -193,10 +194,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     @Override
     protected PaymentMethodInfoPlugin buildPaymentMethodInfoPlugin(final StripePaymentMethodsRecord record) {
-        return new PluginPaymentMethodInfoPlugin(UUID.fromString(record.getKbAccountId()),
-                                                 UUID.fromString(record.getKbPaymentMethodId()),
-                                                 false,
-                                                 record.getStripeId());
+        return StripePaymentMethodInfoPlugin.build(record);
     }
 
     @Override
@@ -211,7 +209,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         if (paymentMethodIdInStripe == null) {
             // Support also a token plugin property as it is a bit easier to pass it in cURLs (also sent by kbcmd in the body)
             paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("token", allProperties);
-            objectType = "token";
+            if (paymentMethodIdInStripe != null) {
+                objectType = "token";
+            } // Otherwise, defaults to payment_method (session flow)
         }
 
         final String sessionId = PluginProperties.findPluginPropertyValue("sessionId", allProperties);
@@ -420,6 +420,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 final List<PluginProperty> properties = PluginProperties.buildPluginProperties(additionalDataMap);
                 final StripePaymentMethodPlugin paymentMethodInfo = new StripePaymentMethodPlugin(null,
                                                                                                   stripeObject.getId(),
+                                                                                                  false,
                                                                                                   properties);
                 killbillAPI.getPaymentApi().addPaymentMethod(getAccount(kbAccountId, context),
                                                              stripeObject.getId(),
