@@ -24,7 +24,7 @@
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
     <name>Kill Bill Stripe plugin</name>
-    <version>7.0.1-SNAPSHOT</version>
+    <version>7.0.1</version>
     <packaging>bundle</packaging>
     <description>Kill Bill Stripe plugin</description>
     <url>http://github.com/killbill/killbill-stripe-plugin</url>
