@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -16,6 +16,7 @@
 
 package org.killbill.billing.plugin.stripe;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -27,9 +28,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 import com.stripe.Stripe;
+import com.stripe.exception.ApiException;
 import com.stripe.exception.StripeException;
+import com.stripe.model.StripeObjectInterface;
 import com.stripe.net.ApiResource;
 import com.stripe.net.RequestOptions;
+import com.stripe.net.StripeResponse;
 
 public class StripeHealthcheck implements Healthcheck {
 
@@ -51,16 +55,43 @@ public class StripeHealthcheck implements Healthcheck {
         final RequestOptions requestOptions = RequestOptions.builder()
                                                             .setConnectTimeout(Integer.valueOf(stripeConfigProperties.getConnectionTimeout()))
                                                             .setReadTimeout(Integer.valueOf(stripeConfigProperties.getReadTimeout()))
+                                                            .setApiKey(stripeConfigProperties.getApiKey())
                                                             .build();
 
         // Found this endpoint by cURLing random urls - let's hope it's stable :-)
-        String url = String.format("%s%s", Stripe.getApiBase(), "/healthcheck");
+        final String url = String.format("%s%s", Stripe.getApiBase(), "/healthcheck");
         try {
-            ApiResource.request(ApiResource.RequestMethod.GET, url, ImmutableMap.of(), Map.class, requestOptions);
+            ApiResource.request(ApiResource.RequestMethod.GET,
+                                url,
+                                ImmutableMap.<String, Object>of(),
+                                StripeHealthcheckResponse.class,
+                                requestOptions);
             return HealthStatus.healthy("Stripe OK");
+        } catch (final ApiException e) { // Not a JSON object anymore...
+            if (e.getStatusCode() == 200) {
+                return HealthStatus.healthy("Stripe OK");
+            } else {
+                logger.warn("Healthcheck error", e);
+                return HealthStatus.unHealthy("Stripe error: " + e.getMessage());
+            }
         } catch (final StripeException e) {
             logger.warn("Healthcheck error", e);
             return HealthStatus.unHealthy("Stripe error: " + e.getMessage());
+        }
+    }
+
+    public static class StripeHealthcheckResponse extends HashMap<String, Object> implements StripeObjectInterface {
+
+        private StripeResponse lastResponse;
+
+        @Override
+        public StripeResponse getLastResponse() {
+            return lastResponse;
+        }
+
+        @Override
+        public void setLastResponse(final StripeResponse response) {
+            this.lastResponse = response;
         }
     }
 }

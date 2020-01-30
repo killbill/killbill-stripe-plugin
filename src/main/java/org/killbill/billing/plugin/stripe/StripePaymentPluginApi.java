@@ -677,7 +677,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                  paymentIntentParams.put("capture_method", transactionType == TransactionType.AUTHORIZE ? "manual" : "automatic");
                                                  // TODO Do we need to switch to manual confirmation to be able to set off_session=recurring?
                                                  paymentIntentParams.put("confirm", true);
-                                                 paymentIntentParams.put("confirmation_method", "manual");
+                                                 // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
+                                                 paymentIntentParams.put("confirmation_method", "automatic");
                                                  if (customerId != null) {
                                                      paymentIntentParams.put("customer", customerId);
                                                  }
