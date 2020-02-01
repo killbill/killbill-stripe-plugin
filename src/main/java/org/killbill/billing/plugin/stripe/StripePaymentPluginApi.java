@@ -48,7 +48,6 @@ import org.killbill.billing.payment.plugin.api.PaymentTransactionInfoPlugin;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.core.PluginCustomField;
 import org.killbill.billing.plugin.api.payment.PluginHostedPaymentPageFormDescriptor;
-import org.killbill.billing.plugin.api.payment.PluginPaymentMethodInfoPlugin;
 import org.killbill.billing.plugin.api.payment.PluginPaymentPluginApi;
 import org.killbill.billing.plugin.stripe.dao.StripeDao;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripePaymentMethods;
@@ -70,6 +69,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
 import com.stripe.model.Customer;
 import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
@@ -273,7 +273,32 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
-                    stripeId = stripeToken.getId();
+
+                    final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
+                    final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
+                    if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
+                        Map<String, Object> customerParams = new HashMap<>();
+                        customerParams.put("source", paymentMethodIdInStripe);
+                        logger.info("Creating customer in Stripe to be able to re-use the token");
+                        final Customer customer = Customer.create(customerParams, requestOptions);
+                        // The id to charge now is the default source (e.g. card), not the token
+                        stripeId = customer.getDefaultSource();
+                        // Add magic custom field
+                        logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, customer.getId());
+                        final CustomField customField = new PluginCustomField(kbAccountId,
+                                                                              ObjectType.ACCOUNT,
+                                                                              "STRIPE_CUSTOMER_ID",
+                                                                              customer.getId(),
+                                                                              clock.getUTCNow());
+                        try {
+                            killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.<CustomField>of(customField), context);
+                        } catch (final CustomFieldApiException e) {
+                            throw new PaymentPluginApiException("Unable to add custom field", e);
+                        }
+                    } else {
+                        // The id to charge is the one-time token
+                        stripeId = stripeToken.getId();
+                    }
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }

@@ -121,6 +121,8 @@ curl -v \
 
 Take a look at [kbcmd](https://github.com/killbill/kbcli/blob/master/docs/kbcmd/kbcmd-walkthrough.md) for a step-by-step walkthrough.
 
+Note: if the token is already attached to a customer in Stripe, make sure to first set the `STRIPE_CUSTOMER_ID` custom field to the account in Kill Bill (see below) before calling `addPaymentMethod (in this case, the token will be stored as-is and assumed to be re-usable if you intent to do subsequent payments). Otherwise, the plugin assumes it is a one-time token and will automatically create an associated customer in Stripe attached to this token to be able to re-use it (if needed, you can bypass this logic by specifying the `createStripeCustomer=false` plugin property in the `addPaymentMethod` call).
+
 ### Other methods
 
 If you are using [Stripe Elements](https://stripe.com/docs/stripe-js/elements/quickstart) or storing payment methods in Stripe via any other way (or if you want to migrate from another billing system and already have customers in Stripe), the flow to setup Kill Bill accounts is as follows:
