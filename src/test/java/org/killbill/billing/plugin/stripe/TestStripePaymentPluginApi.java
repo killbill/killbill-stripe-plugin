@@ -57,6 +57,7 @@ import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentSource;
+import com.stripe.model.Token;
 import com.stripe.net.RequestOptions;
 
 import static org.testng.Assert.assertEquals;
@@ -68,6 +69,58 @@ public class TestStripePaymentPluginApi extends TestBase {
 
     private Customer customer;
     private PaymentMethodPlugin paymentMethodPlugin;
+
+    @Test(groups = "slow")
+    public void testLegacyTokensAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
+        final UUID kbAccountId = account.getId();
+
+        assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
+
+        final Map<String, Object> card = new HashMap<>();
+        card.put("number", "4242424242424242");
+        card.put("exp_month", 1);
+        card.put("exp_year", 2021);
+        card.put("cvc", "314");
+        final Map<String, Object> params = new HashMap<>();
+        params.put("card", card);
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        final Token token = Token.create(params, options);
+
+        final UUID kbPaymentMethodId = UUID.randomUUID();
+        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
+                                                kbPaymentMethodId,
+                                                new PluginPaymentMethodPlugin(kbPaymentMethodId, null, false, ImmutableList.of()),
+                                                true,
+                                                ImmutableList.of(new PluginProperty("token", token.getId(), false)),
+                                                context);
+
+        final Payment payment1 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, account.getCurrency(), killbillApi);
+        final PaymentTransaction purchaseTransaction1 = TestUtils.buildPaymentTransaction(payment1, TransactionType.PURCHASE, BigDecimal.TEN, payment1.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin1 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment1.getId(),
+                                                                                                        purchaseTransaction1.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction1.getAmount(),
+                                                                                                        purchaseTransaction1.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction1, purchaseInfoPlugin1);
+        verifyPaymentTransactionInfoPlugin(payment1, purchaseTransaction1, purchaseInfoPlugin1, PaymentPluginStatus.PROCESSED);
+
+        // Verify we can re-use the token
+        final Payment payment2 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, account.getCurrency(), killbillApi);
+        final PaymentTransaction purchaseTransaction2 = TestUtils.buildPaymentTransaction(payment2, TransactionType.PURCHASE, BigDecimal.TEN, payment2.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin2 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment2.getId(),
+                                                                                                        purchaseTransaction2.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction2.getAmount(),
+                                                                                                        purchaseTransaction2.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction2, purchaseInfoPlugin2);
+        verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
+    }
 
     @Test(groups = "slow")
     public void testVerifySyncOfPaymentMethods() throws PaymentPluginApiException, StripeException {
