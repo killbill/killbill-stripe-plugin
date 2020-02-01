@@ -44,6 +44,7 @@ import org.killbill.billing.plugin.api.payment.PluginPaymentMethodPlugin;
 import org.killbill.billing.plugin.util.http.HttpClient;
 import org.killbill.billing.plugin.util.http.ResponseFormat;
 import org.killbill.billing.util.callcontext.TenantContext;
+import org.killbill.billing.util.customfield.CustomField;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -63,6 +64,7 @@ import com.stripe.net.RequestOptions;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class TestStripePaymentPluginApi extends TestBase {
@@ -108,6 +110,70 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment1, purchaseTransaction1, purchaseInfoPlugin1, PaymentPluginStatus.PROCESSED);
 
         // Verify we can re-use the token
+        final Payment payment2 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, account.getCurrency(), killbillApi);
+        final PaymentTransaction purchaseTransaction2 = TestUtils.buildPaymentTransaction(payment2, TransactionType.PURCHASE, BigDecimal.TEN, payment2.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin2 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment2.getId(),
+                                                                                                        purchaseTransaction2.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction2.getAmount(),
+                                                                                                        purchaseTransaction2.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction2, purchaseInfoPlugin2);
+        verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
+    }
+
+    @Test(groups = "slow")
+    public void testLegacyTokensAndChargesAPICustomerCreatedOutsideOfKillBill() throws PaymentPluginApiException, StripeException, PaymentApiException {
+        final UUID kbAccountId = account.getId();
+
+        assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
+
+        final Map<String, Object> card = new HashMap<>();
+        card.put("number", "4242424242424242");
+        card.put("exp_month", 1);
+        card.put("exp_year", 2021);
+        card.put("cvc", "314");
+        final Map<String, Object> params = new HashMap<>();
+        params.put("card", card);
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        final Token token = Token.create(params, options);
+
+        Map<String, Object> customerParams = new HashMap<>();
+        customerParams.put("source", token.getId());
+        final Customer customer = Customer.create(customerParams, options);
+
+        assertTrue(customer.getDefaultSource().startsWith("card_"));
+
+        // Add the magic Custom Field
+        final CustomField customField = new PluginCustomField(kbAccountId,
+                                                              ObjectType.ACCOUNT,
+                                                              "STRIPE_CUSTOMER_ID",
+                                                              customer.getId(),
+                                                              clock.getUTCNow());
+        Mockito.when(customFieldUserApi.getCustomFieldsForAccountType(Mockito.eq(kbAccountId), Mockito.eq(ObjectType.ACCOUNT), Mockito.any(TenantContext.class)))
+               .thenReturn(ImmutableList.of(customField));
+
+        // Sync Stripe <-> Kill Bill
+        final List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, true, ImmutableList.<PluginProperty>of(), context);
+
+        final UUID kbPaymentMethodId = paymentMethods.get(0).getPaymentMethodId();
+
+        final Payment payment1 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, account.getCurrency(), killbillApi);
+        final PaymentTransaction purchaseTransaction1 = TestUtils.buildPaymentTransaction(payment1, TransactionType.PURCHASE, BigDecimal.TEN, payment1.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin1 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment1.getId(),
+                                                                                                        purchaseTransaction1.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction1.getAmount(),
+                                                                                                        purchaseTransaction1.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction1, purchaseInfoPlugin1);
+        verifyPaymentTransactionInfoPlugin(payment1, purchaseTransaction1, purchaseInfoPlugin1, PaymentPluginStatus.PROCESSED);
+
+        // Verify we can re-use the card
         final Payment payment2 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, account.getCurrency(), killbillApi);
         final PaymentTransaction purchaseTransaction2 = TestUtils.buildPaymentTransaction(payment2, TransactionType.PURCHASE, BigDecimal.TEN, payment2.getCurrency());
         final PaymentTransactionInfoPlugin purchaseInfoPlugin2 = stripePaymentPluginApi.purchasePayment(account.getId(),
