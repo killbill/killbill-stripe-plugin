@@ -47,8 +47,14 @@ public class StripeHealthcheck implements Healthcheck {
 
     @Override
     public HealthStatus getHealthStatus(@Nullable final Tenant tenant, @Nullable final Map properties) {
-        final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(tenant == null ? null : tenant.getId());
-        return pingStripe(stripeConfigProperties);
+        if (tenant == null) {
+            // The plugin is running
+            return HealthStatus.healthy("Stripe OK");
+        } else {
+            // Specifying the tenant lets you also validate the tenant configuration
+            final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(tenant.getId());
+            return pingStripe(stripeConfigProperties);
+        }
     }
 
     private HealthStatus pingStripe(final StripeConfigProperties stripeConfigProperties) {
