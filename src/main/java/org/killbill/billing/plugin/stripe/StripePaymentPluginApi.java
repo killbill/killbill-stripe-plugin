@@ -143,14 +143,14 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             if (transaction.getStatus() == PaymentPluginStatus.PENDING) {
                 final String paymentIntentId = PluginProperties.findPluginPropertyValue("id", transaction.getProperties());
                 try {
-                    final PaymentIntent intent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
+                    PaymentIntent intent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
                     // 3DS validated: must confirm the PaymentIntent
                     if ("requires_confirmation".equals(intent.getStatus())) {
                         logger.info("Confirming Stripe transaction {}", intent.getId());
-                        final PaymentIntent updatedIntent = intent.confirm(requestOptions);
-                        dao.updateResponse(transaction.getKbTransactionPaymentId(), updatedIntent, context.getTenantId());
-                        wasRefreshed = true;
+                        intent = intent.confirm(requestOptions);
                     }
+                    dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
+                    wasRefreshed = true;
                 } catch (final StripeException e) {
                     logger.warn("Unable to fetch latest payment state in Stripe, data might be stale", e);
                 } catch (final SQLException e) {
