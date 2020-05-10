@@ -69,7 +69,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.stripe.exception.CardException;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
 import com.stripe.model.Customer;
 import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
@@ -777,12 +779,22 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentMethodsRecord nonNullPaymentMethodsRecord = getStripePaymentMethodsRecord(kbPaymentMethodId, context);
         final DateTime utcNow = clock.getUTCNow();
 
-        final PaymentIntent response;
+        PaymentIntent response;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
             try {
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord);
+            } catch (final CardException e) {
+                try {
+                    final RequestOptions requestOptions = buildRequestOptions(context);
+                    final Charge charge = Charge.retrieve(e.getCharge(), requestOptions);
+                    final String paymentIntentId = charge.getPaymentIntent();
+                    final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
+                    response = paymentIntent;
+                } catch (final StripeException e2) {
+                    throw new PaymentPluginApiException("Error getting card error details from Stripe", e2);
+                }
             } catch (final StripeException e) {
                 throw new PaymentPluginApiException("Error connecting to Stripe", e);
             }
