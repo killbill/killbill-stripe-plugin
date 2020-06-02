@@ -622,7 +622,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
 
         Map<String, Object> params = new HashMap<String, Object>();
-
+        Map<String, Object> metadata = new HashMap<String, Object>();
+        customFields.forEach(p -> metadata.put(p.getKey(), p.getValue()));
+        params.put("metadata", metadata);
+        
         // Stripe doesn't support anything else yet
         ArrayList<String> paymentMethodTypes = new ArrayList<>();
         paymentMethodTypes.add("card");
@@ -644,7 +647,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
-
+        final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
+        
         try {
             logger.info("Creating Stripe session");
             final Session session = Session.create(params, buildRequestOptions(context));
@@ -655,7 +659,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               session,
                               clock.getUTCNow(),
                               context.getTenantId());
-            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session)));
+            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session,stripeConfigProperties.getPublicKey())));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
         } catch (final SQLException e) {

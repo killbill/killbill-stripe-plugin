@@ -59,10 +59,21 @@ public class StripeCheckoutServlet extends PluginHealthcheck {
 
     @POST
     public Result createSession(@Named("kbAccountId") final UUID kbAccountId,
-                                @Named("successUrl") final Optional<String> successUrl,
+					            @Named("successUrl") final Optional<String> successUrl,
+					            @Named("cancelUrl") final Optional<String> cancelUrl,
+					            @Named("name") final Optional<String> line_item_name,
+					            @Named("kbaccount") final Optional<String> kbaccount,
+					            @Named("kbinvoice") final Optional<String> kbinvoice,
+					            @Named("amount") final Optional<Integer> amount,
                                 @Local @Named("killbill_tenant") final Tenant tenant) throws JsonProcessingException, PaymentPluginApiException {
         final CallContext context = new PluginCallContext(StripeActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());
-        final ImmutableList<PluginProperty> customFields = ImmutableList.of(new PluginProperty("success_url", successUrl.orElse("https://example.com/success"), false));
+        final ImmutableList<PluginProperty> customFields = ImmutableList.of(
+        		new PluginProperty("kbaccount", kbaccount.orElse("none"), false),
+        		new PluginProperty("kbinvoice", kbinvoice.orElse("none"), false),
+        		new PluginProperty("success_url", successUrl.orElse("https://example.com/success"), false),
+        		new PluginProperty("cancel_url", successUrl.orElse("https://example.com/cancel"), false),
+        		new PluginProperty("line_item_name", line_item_name.orElse("Authorization charge"), false),
+        		new PluginProperty("line_item_amount", amount.orElse(100), false));
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
                                                                                                                            customFields,
                                                                                                                            ImmutableList.of(),
