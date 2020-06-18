@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
@@ -91,6 +92,13 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     private final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     private final StripeDao dao;
+    
+    final static List<String> metadataFilter = ImmutableList.of(
+    		"line_item_name",
+    		"line_item_amount",
+    		"line_item_currency",
+    		"line_item_quantity");
+
 
     public StripePaymentPluginApi(final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler,
                                   final OSGIKillbillAPI killbillAPI,
@@ -623,7 +631,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         Map<String, Object> params = new HashMap<String, Object>();
         Map<String, Object> metadata = new HashMap<String, Object>();
-        customFields.forEach(p -> metadata.put(p.getKey(), p.getValue()));
+        StreamSupport.stream(customFields.spliterator(), false)
+        	.filter(entry -> !metadataFilter.contains(entry.getKey()))
+        	.forEach(p -> metadata.put(p.getKey(), p.getValue()));
         params.put("metadata", metadata);
         
         // Stripe doesn't support anything else yet
