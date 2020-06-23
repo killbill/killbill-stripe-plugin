@@ -19,6 +19,8 @@ package org.killbill.billing.plugin.stripe;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import com.stripe.model.BankAccount;
 import com.stripe.model.Charge;
 import com.stripe.model.PaymentIntent;
@@ -215,7 +217,7 @@ public abstract class StripePluginProperties {
         return additionalDataMap;
     }
 
-    public static Map<String, Object> toAdditionalDataMap(final Session session, final String pk) {
+    public static Map<String, Object> toAdditionalDataMap(final Session session, @Nullable final String pk) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
         additionalDataMap.put("billing_address_collection", session.getBillingAddressCollection());
@@ -231,7 +233,9 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
-        additionalDataMap.put("publishable_key", pk);
+        if (pk != null) {
+            additionalDataMap.put("publishable_key", pk);
+        }
 
         return additionalDataMap;
     }

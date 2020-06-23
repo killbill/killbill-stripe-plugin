@@ -70,7 +70,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.stripe.exception.StripeException;
-import com.stripe.model.Charge;
 import com.stripe.model.Customer;
 import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
@@ -669,7 +668,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               session,
                               clock.getUTCNow(),
                               context.getTenantId());
-            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session,stripeConfigProperties.getPublicKey())));
+            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey())));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
         } catch (final SQLException e) {
