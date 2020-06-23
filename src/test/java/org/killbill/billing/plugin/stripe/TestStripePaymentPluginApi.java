@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -785,7 +785,7 @@ public class TestStripePaymentPluginApi extends TestBase {
             final String stripePublishableKey = "pk_test_xueTzlxxkKSa5Q47NrnLPcle";
             final String body = "bank_account[account_number]=" + accountNumber + "&bank_account[country]=" + country + "&bank_account[currency]=" + currency + "&bank_account[routing_number]=" + routingNumber + "&bank_account[account_holder_name]=" + name + "&bank_account[account_holder_type]=" + type + "&key=" + stripePublishableKey;
 
-            final AsyncHttpClient.BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, ImmutableMap.of(), ImmutableMap.of()).setBody(body);
+            final AsyncHttpClient.BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);
             final Map response = executeAndWait(builder, DEFAULT_HTTP_TIMEOUT_SEC, Map.class, ResponseFormat.JSON);
 
             return (String) response.get("id");
