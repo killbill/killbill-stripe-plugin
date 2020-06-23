@@ -126,7 +126,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                               final Session stripeSession,
                               final DateTime utcNow,
                               final UUID kbTenantId) throws SQLException {
-        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSession);
+        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSession,"");
 
         execute(dataSource.getConnection(),
                 new WithConnectionCallback<Void>() {

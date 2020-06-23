@@ -215,7 +215,7 @@ public abstract class StripePluginProperties {
         return additionalDataMap;
     }
 
-    public static Map<String, Object> toAdditionalDataMap(final Session session) {
+    public static Map<String, Object> toAdditionalDataMap(final Session session, final String pk) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
         additionalDataMap.put("billing_address_collection", session.getBillingAddressCollection());
@@ -231,6 +231,7 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
+        additionalDataMap.put("publishable_key", pk);
 
         return additionalDataMap;
     }

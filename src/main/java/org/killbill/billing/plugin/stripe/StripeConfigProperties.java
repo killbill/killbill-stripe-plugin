@@ -44,6 +44,7 @@ public class StripeConfigProperties {
 
     private final String region;
     private final String apiKey;
+    private final String publicKey;
     private final String connectionTimeout;
     private final String readTimeout;
     private final Period pendingPaymentExpirationPeriod;
@@ -56,6 +57,7 @@ public class StripeConfigProperties {
     public StripeConfigProperties(final Properties properties, final String region) {
         this.region = region;
         this.apiKey = properties.getProperty(PROPERTY_PREFIX + "apiKey");
+        this.publicKey = properties.getProperty(PROPERTY_PREFIX + "publicKey");
         this.connectionTimeout = properties.getProperty(PROPERTY_PREFIX + "connectionTimeout", DEFAULT_CONNECTION_TIMEOUT);
         this.readTimeout = properties.getProperty(PROPERTY_PREFIX + "readTimeout", DEFAULT_READ_TIMEOUT);
         this.pendingPaymentExpirationPeriod = readPendingExpirationProperty(properties);
@@ -67,6 +69,10 @@ public class StripeConfigProperties {
 
     public String getApiKey() {
         return apiKey;
+    }
+
+    public String getPublicKey() {
+        return publicKey;
     }
 
     public String getConnectionTimeout() {
