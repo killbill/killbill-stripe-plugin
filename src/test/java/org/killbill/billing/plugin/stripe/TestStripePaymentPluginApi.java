@@ -548,6 +548,36 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                                                context);
         assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.PROCESSED);
     }
+    
+    @Test(groups = "integration", enabled = false, description = "Manual test")
+    public void testAuthorizationFailureOn3DSPurchase() throws PaymentPluginApiException, StripeException, PaymentApiException {
+        createStripeCustomerWith3DSCreditCardAndSyncPaymentMethod();
+        final Payment payment = TestUtils.buildPayment(account.getId(), account.getPaymentMethodId(), account.getCurrency(), killbillApi);
+        final PaymentTransaction purchaseTransaction = TestUtils.buildPaymentTransaction(payment, TransactionType.PURCHASE, BigDecimal.TEN, payment.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                       payment.getId(),
+                                                                                                       purchaseTransaction.getId(),
+                                                                                                       paymentMethodPlugin.getKbPaymentMethodId(),
+                                                                                                       purchaseTransaction.getAmount(),
+                                                                                                       purchaseTransaction.getCurrency(),
+                                                                                                       ImmutableList.of(),
+                                                                                                       context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction, purchaseInfoPlugin);
+        verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, PaymentPluginStatus.PENDING);
+        final Map nextAction = (Map) PluginProperties.findPluginProperties("next_action", purchaseInfoPlugin.getProperties()).iterator().next().getValue();
+        final String redirectUrl = (String) ((Map) nextAction.get("useStripeSdk")).get("stripe_js");
+        System.out.println("Go to: " + redirectUrl);
+        // Set a breakpoint here
+        // When presented with an authorization screen fail the authorization
+        System.out.flush();
+        final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginRefreshed = stripePaymentPluginApi.getPaymentInfo(account.getId(),
+                                                                                                                               payment.getId(),
+                                                                                                                               ImmutableList.of(),
+                                                                                                                               context);
+        // Pending PaymentPluginStatus change to CANCELED from ERROR
+        // Related: https://github.com/killbill/killbill-stripe-plugin/pull/33
+        assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.ERROR);
+    }
 
     @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testHPP() throws PaymentPluginApiException, StripeException, PaymentApiException {
