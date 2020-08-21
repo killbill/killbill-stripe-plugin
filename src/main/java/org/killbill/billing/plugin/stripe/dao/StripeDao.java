@@ -266,7 +266,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
     public void updateResponse(final StripeResponsesRecord stripeResponsesRecord,
                                final Map additionalMetadata) throws SQLException {
         final Map additionalDataMap = fromAdditionalData(stripeResponsesRecord.getAdditionalData());
-        additionalDataMap.putAll(additionalDataMap);
+        additionalDataMap.putAll(additionalMetadata);
 
         execute(dataSource.getConnection(),
                 new WithConnectionCallback<Void>() {
