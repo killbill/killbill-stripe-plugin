@@ -576,7 +576,11 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                                                context);
         // Pending PaymentPluginStatus change to CANCELED from ERROR
         // Related: https://github.com/killbill/killbill-stripe-plugin/pull/33
-        assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.ERROR);
+        if (super.stripeConfigPropertiesConfigurationHandler.getConfigurable(super.context.getTenantId()).isCancelOn3DSAuthorizationFailure()) {
+            assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.ERROR);
+        } else {
+            assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.PENDING);
+        }
     }
 
     @Test(groups = "integration", enabled = false, description = "Manual test")
