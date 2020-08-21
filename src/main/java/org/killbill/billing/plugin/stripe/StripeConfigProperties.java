@@ -14,7 +14,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package org.killbill.billing.plugin.stripe;
 
 import java.util.HashMap;
@@ -55,6 +54,7 @@ public class StripeConfigProperties {
     private final Map<String, Period> paymentMethodToExpirationPeriod = new LinkedHashMap<String, Period>();
     private final String chargeDescription;
     private final String chargeStatementDescriptor;
+    private final boolean cancelOn3DSAuthorizationFailure;
 
     public StripeConfigProperties(final Properties properties, final String region) {
         this.region = region;
@@ -67,6 +67,7 @@ public class StripeConfigProperties {
         this.pendingHppPaymentWithoutCompletionExpirationPeriod = readPendingHppPaymentWithoutCompletionExpirationPeriod(properties);
         this.chargeDescription = Ascii.truncate(MoreObjects.firstNonNull(properties.getProperty(PROPERTY_PREFIX + "chargeDescription"), "Kill Bill charge"), 22, "...");
         this.chargeStatementDescriptor = Ascii.truncate(MoreObjects.firstNonNull(properties.getProperty(PROPERTY_PREFIX + "chargeStatementDescriptor"), "Kill Bill charge"), 22, "...");
+        this.cancelOn3DSAuthorizationFailure = readCancelOn3DSAuthorizationFailure(properties);
     }
 
     public String getApiKey() {
@@ -91,6 +92,10 @@ public class StripeConfigProperties {
 
     public String getChargeStatementDescriptor() {
         return chargeStatementDescriptor;
+    }
+
+    public boolean isCancelOn3DSAuthorizationFailure() {
+        return cancelOn3DSAuthorizationFailure;
     }
 
     public Period getPendingPaymentExpirationPeriod(@Nullable final String paymentMethod) {
@@ -150,6 +155,12 @@ public class StripeConfigProperties {
         }
 
         return Period.parse(DEFAULT_PENDING_HPP_PAYMENT_WITHOUT_COMPLETION_EXPIRATION_PERIOD);
+    }
+
+    private boolean readCancelOn3DSAuthorizationFailure(Properties properties) {
+        return Boolean.parseBoolean(
+                properties.getProperty(PROPERTY_PREFIX + "cancelOn3DSAuthorizationFailure")
+        );
     }
 
     private synchronized void refillMap(final Map<String, String> map, final String stringToSplit) {

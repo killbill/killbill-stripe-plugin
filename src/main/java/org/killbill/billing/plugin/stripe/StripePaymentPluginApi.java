@@ -80,6 +80,7 @@ import com.stripe.model.Source;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.PaymentIntentCancelParams;
 
 public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeResponsesRecord, StripeResponses, StripePaymentMethodsRecord, StripePaymentMethods> {
 
@@ -154,6 +155,19 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     if ("requires_confirmation".equals(intent.getStatus())) {
                         logger.info("Confirming Stripe transaction {}", intent.getId());
                         intent = intent.confirm(requestOptions);
+                    }
+                    // 3DS authorization failure - Fail payment according to property
+                    else if (stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId()).isCancelOn3DSAuthorizationFailure()
+                            && "requires_payment_method".equals(intent.getStatus())
+                            && intent.getLastPaymentError() != null
+                            && "payment_intent_authentication_failure".equals(intent.getLastPaymentError().getCode())) {
+                        logger.info("Cancelling Stripe PaymentIntent after 3DS authorization failure {}", intent.getId());
+                        intent = intent.cancel(
+                                    PaymentIntentCancelParams.builder()
+                                            .setCancellationReason(PaymentIntentCancelParams.CancellationReason.ABANDONED)
+                                            .build(),
+                                    requestOptions
+                            );
                     }
                     dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
                     wasRefreshed = true;

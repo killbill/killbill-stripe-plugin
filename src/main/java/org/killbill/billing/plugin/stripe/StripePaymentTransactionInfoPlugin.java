@@ -80,12 +80,19 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
         } else if ("pending".equals(lastChargeStatus)) {
             // Untestable - see https://stripe.com/docs/ach#ach-payments-workflow
             return PaymentPluginStatus.PENDING;
-        } else if (lastChargeStatus == null && "requires_action".equals(status)) {
-            // 3DS
-            return PaymentPluginStatus.PENDING;
         } else if ("failed".equals(lastChargeStatus)) {
             // TODO Do better (look at the type of error to narrow down on CANCELED)!
             return PaymentPluginStatus.ERROR;
+        } else if (lastChargeStatus == null) {
+            if ("requires_action".equals(status)) {
+                // 3DS
+                return PaymentPluginStatus.PENDING;
+            }
+            if ("canceled".equals(status)) {
+                // Intent has been cancelled, mark this as error.
+                return PaymentPluginStatus.ERROR;
+            }
+            return PaymentPluginStatus.UNDEFINED;
         } else {
             return PaymentPluginStatus.UNDEFINED;
         }
