@@ -19,7 +19,6 @@ package org.killbill.billing.plugin.stripe;
 import java.util.Properties;
 
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
-import org.killbill.billing.osgi.libs.killbill.OSGIKillbillLogService;
 import org.killbill.billing.plugin.api.notification.PluginTenantConfigurableConfigurationHandler;
 
 public class StripeConfigPropertiesConfigurationHandler extends PluginTenantConfigurableConfigurationHandler<StripeConfigProperties> {
@@ -28,9 +27,8 @@ public class StripeConfigPropertiesConfigurationHandler extends PluginTenantConf
 
     public StripeConfigPropertiesConfigurationHandler(final String pluginName,
                                                       final OSGIKillbillAPI osgiKillbillAPI,
-                                                      final OSGIKillbillLogService osgiKillbillLogService,
                                                       final String region) {
-        super(pluginName, osgiKillbillAPI, osgiKillbillLogService);
+        super(pluginName, osgiKillbillAPI);
         this.region = region;
     }
 

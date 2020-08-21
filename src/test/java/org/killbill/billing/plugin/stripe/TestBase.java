@@ -25,9 +25,9 @@ import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.osgi.libs.killbill.OSGIConfigPropertiesService;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
-import org.killbill.billing.osgi.libs.killbill.OSGIKillbillLogService;
 import org.killbill.billing.payment.api.PaymentMethodPlugin;
 import org.killbill.billing.plugin.TestUtils;
+import org.killbill.billing.plugin.stripe.dao.StripeDao;
 import org.killbill.billing.util.api.CustomFieldUserApi;
 import org.killbill.billing.util.callcontext.CallContext;
 import org.killbill.billing.util.callcontext.TenantContext;
@@ -39,8 +39,6 @@ import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
-
-import org.killbill.billing.plugin.stripe.dao.StripeDao;
 
 public class TestBase {
 
@@ -75,18 +73,12 @@ public class TestBase {
 
         TestUtils.buildPaymentMethod(account.getId(), account.getPaymentMethodId(), StripeActivator.PLUGIN_NAME, killbillApi);
 
-        final OSGIKillbillLogService logService = TestUtils.buildLogService();
-        final Properties properties = TestUtils.loadProperties(PROPERTIES_FILE_NAME);
-
-        final StripeConfigProperties stripeConfigProperties = new StripeConfigProperties(properties, "");
-        stripeConfigPropertiesConfigurationHandler = new StripeConfigPropertiesConfigurationHandler(StripeActivator.PLUGIN_NAME, killbillApi, logService, null);
-        stripeConfigPropertiesConfigurationHandler.setDefaultConfigurable(stripeConfigProperties);
+        stripeConfigPropertiesConfigurationHandler = new StripeConfigPropertiesConfigurationHandler(StripeActivator.PLUGIN_NAME, killbillApi, null);
 
         final OSGIConfigPropertiesService configPropertiesService = Mockito.mock(OSGIConfigPropertiesService.class);
         stripePaymentPluginApi = new StripePaymentPluginApi(stripeConfigPropertiesConfigurationHandler,
                                                             killbillApi,
                                                             configPropertiesService,
-                                                            logService,
                                                             clock,
                                                             dao);
 
@@ -123,6 +115,13 @@ public class TestBase {
             }
         })
                .when(customFieldUserApi).addCustomFields(Mockito.anyList(), Mockito.any(CallContext.class));
+    }
+
+    @BeforeMethod(groups = "integration")
+    public void setUpIntegration() throws Exception {
+        final Properties properties = TestUtils.loadProperties(PROPERTIES_FILE_NAME);
+        final StripeConfigProperties stripeConfigProperties = new StripeConfigProperties(properties, "");
+        stripeConfigPropertiesConfigurationHandler.setDefaultConfigurable(stripeConfigProperties);
     }
 
     @BeforeSuite(groups = {"slow", "integration"})

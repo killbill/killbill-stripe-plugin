@@ -35,7 +35,6 @@ import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.osgi.libs.killbill.OSGIConfigPropertiesService;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
-import org.killbill.billing.osgi.libs.killbill.OSGIKillbillLogService;
 import org.killbill.billing.payment.api.PaymentApiException;
 import org.killbill.billing.payment.api.PaymentMethodPlugin;
 import org.killbill.billing.payment.api.PluginProperty;
@@ -102,10 +101,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     public StripePaymentPluginApi(final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler,
                                   final OSGIKillbillAPI killbillAPI,
                                   final OSGIConfigPropertiesService configProperties,
-                                  final OSGIKillbillLogService logService,
                                   final Clock clock,
                                   final StripeDao dao) {
-        super(killbillAPI, configProperties, logService, clock, dao);
+        super(killbillAPI, configProperties, clock, dao);
         this.stripeConfigPropertiesConfigurationHandler = stripeConfigPropertiesConfigurationHandler;
         this.dao = dao;
     }

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.asynchttpclient.BoundRequestBuilder;
 import org.joda.time.Period;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.payment.api.Payment;
@@ -48,8 +49,6 @@ import org.killbill.billing.util.customfield.CustomField;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import com.ning.http.client.AsyncHttpClient;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.stripe.exception.StripeException;
@@ -72,7 +71,7 @@ public class TestStripePaymentPluginApi extends TestBase {
     private Customer customer;
     private PaymentMethodPlugin paymentMethodPlugin;
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testLegacyTokensAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
@@ -124,7 +123,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testLegacyTokensAndChargesAPICustomerCreatedOutsideOfKillBill() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
@@ -188,7 +187,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testVerifySyncOfPaymentMethods() throws PaymentPluginApiException, StripeException {
         final UUID kbAccountId = account.getId();
 
@@ -226,7 +225,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(((Map) PluginProperties.toMap(paymentMethodDetail.getProperties()).get("metadata")).get("testing"), metadata.get("testing"));
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testDeletePaymentMethod() throws PaymentPluginApiException, StripeException {
         createStripeCustomerWithCreditCardAndSyncPaymentMethod();
 
@@ -250,7 +249,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertNull(PaymentMethod.retrieve(paymentMethods.get(0).getExternalPaymentMethodId(), options).getCustomer());
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testSuccessfulAuthCapture() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWithCreditCardAndSyncPaymentMethod();
 
@@ -281,7 +280,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment, captureTransaction, captureInfoPlugin, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testSuccessfulAuthVoid() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWithCreditCardAndSyncPaymentMethod();
 
@@ -310,7 +309,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment, voidTransaction, voidInfoPlugin, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testSuccessfulPurchaseRefund() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWithCreditCardAndSyncPaymentMethod();
 
@@ -341,7 +340,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment, refundTransaction, refundInfoPlugin, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testSuccessfulPurchaseMultiplePartialRefunds() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWithCreditCardAndSyncPaymentMethod();
 
@@ -420,7 +419,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(paymentTransactionInfoPlugin4.size(), 4);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testExpired3DSPurchase() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWith3DSCreditCardAndSyncPaymentMethod();
 
@@ -455,7 +454,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(paymentTransactionInfoPluginExpired.get(0).getStatus(), PaymentPluginStatus.CANCELED);
     }
 
-    @Test(groups = "slow")
+    @Test(groups = "integration")
     public void testSuccessfulBankAccountPurchase() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWithBankAccountAndCreditCardAndSyncPaymentMethod();
 
@@ -475,7 +474,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow", enabled = false, description = "Manual test")
+    @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testSuccessful3DSAuthCapture() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWith3DSCreditCardAndSyncPaymentMethod();
 
@@ -518,7 +517,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment, captureTransaction, captureInfoPlugin, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow", enabled = false, description = "Manual test")
+    @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testSuccessful3DSPurchase() throws PaymentPluginApiException, StripeException, PaymentApiException {
         createStripeCustomerWith3DSCreditCardAndSyncPaymentMethod();
 
@@ -549,7 +548,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(paymentTransactionInfoPluginRefreshed.get(0).getStatus(), PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "slow", enabled = false, description = "Manual test")
+    @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testHPP() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
@@ -785,7 +784,7 @@ public class TestStripePaymentPluginApi extends TestBase {
             final String stripePublishableKey = "pk_test_xueTzlxxkKSa5Q47NrnLPcle";
             final String body = "bank_account[account_number]=" + accountNumber + "&bank_account[country]=" + country + "&bank_account[currency]=" + currency + "&bank_account[routing_number]=" + routingNumber + "&bank_account[account_holder_name]=" + name + "&bank_account[account_holder_type]=" + type + "&key=" + stripePublishableKey;
 
-            final AsyncHttpClient.BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);
+            final BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);
             final Map response = executeAndWait(builder, DEFAULT_HTTP_TIMEOUT_SEC, Map.class, ResponseFormat.JSON);
 
             return (String) response.get("id");
