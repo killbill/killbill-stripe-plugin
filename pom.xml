@@ -38,6 +38,7 @@
         <url>https://github.com/killbill/killbill-stripe-plugin/issues</url>
     </issueManagement>
     <properties>
+        <check.fail-spotbugs>true</check.fail-spotbugs>
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
     </properties>

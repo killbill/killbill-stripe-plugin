@@ -19,6 +19,7 @@ package org.killbill.billing.plugin.stripe;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import javax.annotation.Nullable;
@@ -119,9 +120,9 @@ public class StripeConfigProperties {
         }
 
         // User has defined per-payment method overrides
-        for (final String paymentMethod : paymentMethodToExpirationPeriodString.keySet()) {
+        for (final Entry<String, String> entry : paymentMethodToExpirationPeriodString.entrySet()) {
             try {
-                paymentMethodToExpirationPeriod.put(paymentMethod.toLowerCase(), Period.parse(paymentMethodToExpirationPeriodString.get(paymentMethod)));
+                paymentMethodToExpirationPeriod.put(entry.getKey().toLowerCase(), Period.parse(entry.getValue()));
             } catch (final IllegalArgumentException e) { /* Ignore */ }
         }
 

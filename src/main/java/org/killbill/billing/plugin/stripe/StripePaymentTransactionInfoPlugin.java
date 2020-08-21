@@ -141,4 +141,28 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
     public StripeResponsesRecord getStripeResponseRecord() {
         return stripeResponseRecord;
     }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        final StripePaymentTransactionInfoPlugin that = (StripePaymentTransactionInfoPlugin) o;
+
+        return stripeResponseRecord != null ? stripeResponseRecord.equals(that.stripeResponseRecord) : that.stripeResponseRecord == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (stripeResponseRecord != null ? stripeResponseRecord.hashCode() : 0);
+        return result;
+    }
 }

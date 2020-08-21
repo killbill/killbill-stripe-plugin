@@ -91,7 +91,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     private final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     private final StripeDao dao;
     
-    final static List<String> metadataFilter = ImmutableList.of(
+    static final List<String> metadataFilter = ImmutableList.of(
     		"line_item_name",
     		"line_item_amount",
     		"line_item_currency",
@@ -282,7 +282,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
                     final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
                     if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
-                        Map<String, Object> customerParams = new HashMap<>();
+                        final Map<String, Object> customerParams = new HashMap<>();
                         customerParams.put("source", paymentMethodIdInStripe);
                         logger.info("Creating customer in Stripe to be able to re-use the token");
                         final Customer customer = Customer.create(customerParams, requestOptions);
@@ -512,7 +512,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                   final RequestOptions requestOptions = buildRequestOptions(context);
 
                                                   final PaymentIntent intent = PaymentIntent.retrieve((String) StripeDao.fromAdditionalData(previousResponse.getAdditionalData()).get("id"), requestOptions);
-                                                  Map<String, Object> paymentIntentParams = new HashMap<String, Object>();
+                                                  final Map<String, Object> paymentIntentParams = new HashMap<String, Object>();
                                                   paymentIntentParams.put("amount_to_capture", KillBillMoney.toMinorUnits(currency.toString(), amount));
                                                   return intent.capture(paymentIntentParams, requestOptions);
                                               }
@@ -591,11 +591,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                   // The PaymentIntent API doesn't have a refund API - refund the charge created behind the scenes instead
                                                   final String lastChargeId = (String) additionalData.get("last_charge_id");
 
-                                                  Map<String, Object> params = new HashMap<>();
+                                                  final Map<String, Object> params = new HashMap<>();
                                                   params.put("charge", lastChargeId);
                                                   params.put("amount", KillBillMoney.toMinorUnits(currency.toString(), amount));
 
-                                                  final Refund refund = Refund.create(params, requestOptions);
+                                                  Refund.create(params, requestOptions);
 
                                                   return PaymentIntent.retrieve(paymentIntent, requestOptions);
                                               }
@@ -614,32 +614,31 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     RequestOptions buildRequestOptions(final TenantContext context) {
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
         return RequestOptions.builder()
-                             .setConnectTimeout(Integer.valueOf(stripeConfigProperties.getConnectionTimeout()))
-                             .setReadTimeout(Integer.valueOf(stripeConfigProperties.getReadTimeout()))
+                             .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
+                             .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
                              .setApiKey(stripeConfigProperties.getApiKey())
                              .build();
     }
 
     @Override
     public HostedPaymentPageFormDescriptor buildFormDescriptor(final UUID kbAccountId, final Iterable<PluginProperty> customFields, final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-
         final Account account = getAccount(kbAccountId, context);
-        String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
+        final String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
 
-        Map<String, Object> params = new HashMap<String, Object>();
-        Map<String, Object> metadata = new HashMap<String, Object>();
+        final Map<String, Object> params = new HashMap<String, Object>();
+        final Map<String, Object> metadata = new HashMap<String, Object>();
         StreamSupport.stream(customFields.spliterator(), false)
         	.filter(entry -> !metadataFilter.contains(entry.getKey()))
         	.forEach(p -> metadata.put(p.getKey(), p.getValue()));
         params.put("metadata", metadata);
         
         // Stripe doesn't support anything else yet
-        ArrayList<String> paymentMethodTypes = new ArrayList<>();
+        final ArrayList<String> paymentMethodTypes = new ArrayList<>();
         paymentMethodTypes.add("card");
         params.put("payment_method_types", paymentMethodTypes);
 
-        ArrayList<HashMap<String, Object>> lineItems = new ArrayList<>();
-        HashMap<String, Object> lineItem = new HashMap<String, Object>();
+        final ArrayList<HashMap<String, Object>> lineItems = new ArrayList<>();
+        final HashMap<String, Object> lineItem = new HashMap<String, Object>();
         lineItem.put("name", PluginProperties.getValue("line_item_name", "Authorization charge", customFields));
         lineItem.put("amount", PluginProperties.getValue("line_item_amount", "100", customFields));
         lineItem.put("currency", PluginProperties.getValue("line_item_currency", defaultCurrency, customFields));
@@ -647,7 +646,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         lineItems.add(lineItem);
         params.put("line_items", lineItems);
 
-        HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
+        final HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
         // Auth only
         paymentIntentData.put("capture_method", "manual");
         params.put("payment_intent_data", paymentIntentData);
@@ -707,7 +706,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                              public PaymentIntent execute(final Account account, final StripePaymentMethodsRecord paymentMethodsRecord) throws StripeException {
                                                  final RequestOptions requestOptions = buildRequestOptions(context);
 
-                                                 Map<String, Object> paymentIntentParams = new HashMap<>();
+                                                 final Map<String, Object> paymentIntentParams = new HashMap<>();
                                                  paymentIntentParams.put("amount", KillBillMoney.toMinorUnits(currency.toString(), amount));
                                                  paymentIntentParams.put("currency", currency.toString());
                                                  paymentIntentParams.put("capture_method", transactionType == TransactionType.AUTHORIZE ? "manual" : "automatic");
