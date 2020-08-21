@@ -28,7 +28,7 @@ The plugin needs a database. The latest version of the schema can be found [here
 Locally:
 
 ```
-kpm install_java_plugin stripe --from-source-file=target/stripe-plugin-7.0.0-SNAPSHOT.jar --destination=/var/tmp/bundles
+kpm install_java_plugin stripe --from-source-file target/stripe-plugin-*-SNAPSHOT.jar --destination /var/tmp/bundles
 ```
 
 ## Configuration
