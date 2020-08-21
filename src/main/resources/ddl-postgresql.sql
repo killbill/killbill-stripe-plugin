@@ -1,5 +1,4 @@
 /*
- * Copyright 2014-2020 Groupon, Inc
  * Copyright 2020-2020 Equinix, Inc
  * Copyright 2014-2020 The Billing Project, LLC
  *
