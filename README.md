@@ -1,8 +1,7 @@
 # killbill-stripe-plugin
+![Maven Central](https://img.shields.io/maven-central/v/org.kill-bill.billing.plugin.java/stripe-plugin?color=blue&label=Maven%20Central)
 
 Plugin to use [Stripe](https://stripe.com/) as a gateway.
-
-Release builds are available on [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.kill-bill.billing.plugin.java%22%20AND%20a%3A%22stripe-plugin%22) with coordinates `org.kill-bill.billing.plugin.java:stripe-plugin`.
 
 A full end-to-end integration demo is available [here](https://github.com/killbill/killbill-stripe-demo).
 
@@ -15,9 +14,10 @@ A full end-to-end integration demo is available [here](https://github.com/killbi
 | 4.x.y          | 0.18.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 5.x.y          | 0.19.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
 | 6.x.y          | 0.20.z             | [2015-02-18](https://stripe.com/docs/upgrades#2015-02-18) |
-| 7.x.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
+| 7.0.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
+| 7.1.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
 
-**Note**: upgrading from 6.x.y to 7.x.y is currently not documented and therefore not recommended. Users running 6.x.y in production and wishing to upgrade should contact the core team on the support forum for guidance.
+We've upgraded numerous dependencies in 7.1.x (required for Java 11 support).
 
 ## Requirements
 
@@ -28,7 +28,7 @@ The plugin needs a database. The latest version of the schema can be found [here
 Locally:
 
 ```
-kpm install_java_plugin stripe --from-source-file=target/stripe-plugin-7.0.0-SNAPSHOT.jar --destination=/var/tmp/bundles
+kpm install_java_plugin stripe --from-source-file target/stripe-plugin-*-SNAPSHOT.jar --destination /var/tmp/bundles
 ```
 
 ## Configuration
@@ -157,3 +157,6 @@ curl -v \
      -H "X-Killbill-Comment: demo" \
      "http://127.0.0.1:8080/1.0/kb/accounts/<ACCOUNT_ID>/paymentMethods/refresh"
 ```
+## About
+
+Kill Bill is the leading Open-Source Subscription Billing & Payments Platform. For more information about the project, go to https://killbill.io/.

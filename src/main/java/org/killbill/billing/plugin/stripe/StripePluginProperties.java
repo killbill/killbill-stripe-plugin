@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -18,6 +19,8 @@ package org.killbill.billing.plugin.stripe;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 import com.stripe.model.BankAccount;
 import com.stripe.model.Charge;
@@ -215,7 +218,7 @@ public abstract class StripePluginProperties {
         return additionalDataMap;
     }
 
-    public static Map<String, Object> toAdditionalDataMap(final Session session) {
+    public static Map<String, Object> toAdditionalDataMap(final Session session, @Nullable final String pk) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
         additionalDataMap.put("billing_address_collection", session.getBillingAddressCollection());
@@ -231,6 +234,9 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
+        if (pk != null) {
+            additionalDataMap.put("publishable_key", pk);
+        }
 
         return additionalDataMap;
     }

@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -49,7 +50,6 @@ public class StripeActivator extends KillbillActivatorBase {
         final String region = PluginEnvironmentConfig.getRegion(configProperties.getProperties());
         stripeConfigPropertiesConfigurationHandler = new StripeConfigPropertiesConfigurationHandler(PLUGIN_NAME,
                                                                                                     killbillAPI,
-                                                                                                    logService,
                                                                                                     region);
 
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.createConfigurable(
@@ -61,11 +61,10 @@ public class StripeActivator extends KillbillActivatorBase {
         registerHealthcheck(context, stripeHealthcheck);
 
         // Register the payment plugin
-        Stripe.setAppInfo("Kill Bill", "7.0.0", "https://killbill.io");
+        Stripe.setAppInfo("Kill Bill", "7.1.0", "https://killbill.io");
         final StripePaymentPluginApi pluginApi = new StripePaymentPluginApi(stripeConfigPropertiesConfigurationHandler,
                                                                             killbillAPI,
                                                                             configProperties,
-                                                                            logService,
                                                                             clock.getClock(),
                                                                             stripeDao
         );
@@ -74,7 +73,6 @@ public class StripeActivator extends KillbillActivatorBase {
         // Register the servlet
         final PluginApp pluginApp = new PluginAppBuilder(PLUGIN_NAME,
                                                          killbillAPI,
-                                                         logService,
                                                          dataSource,
                                                          super.clock,
                                                          configProperties).withRouteClass(StripeHealthcheckServlet.class)

@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -31,10 +32,10 @@ import org.killbill.billing.payment.api.TransactionType;
 import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginPaymentTransactionInfoPlugin;
-
-import com.google.common.base.Strings;
 import org.killbill.billing.plugin.stripe.dao.StripeDao;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeResponsesRecord;
+
+import com.google.common.base.Strings;
 
 public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransactionInfoPlugin {
 
@@ -79,12 +80,25 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
         } else if ("pending".equals(lastChargeStatus)) {
             // Untestable - see https://stripe.com/docs/ach#ach-payments-workflow
             return PaymentPluginStatus.PENDING;
-        } else if (lastChargeStatus == null && "requires_action".equals(status)) {
-            // 3DS
-            return PaymentPluginStatus.PENDING;
         } else if ("failed".equals(lastChargeStatus)) {
             // TODO Do better (look at the type of error to narrow down on CANCELED)!
             return PaymentPluginStatus.ERROR;
+        } else if (lastChargeStatus == null) {
+            if ("requires_action".equals(status)) {
+                // 3DS
+                return PaymentPluginStatus.PENDING;
+            }
+            if ("canceled".equals(status)) {
+                // Intent has been cancelled, mark this as error.
+                return PaymentPluginStatus.ERROR;
+            }
+            if ("requires_payment_method".equals(status)
+                && additionalData.get("last_payment_error") != null
+                && "payment_intent_authentication_failure".equals(((Map) additionalData.get("last_payment_error")).get("code"))) {
+                // Failed 3DS intent, but not yet cancelled
+                return PaymentPluginStatus.PENDING;
+            }
+            return PaymentPluginStatus.UNDEFINED;
         } else {
             return PaymentPluginStatus.UNDEFINED;
         }
@@ -140,5 +154,29 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
 
     public StripeResponsesRecord getStripeResponseRecord() {
         return stripeResponseRecord;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        final StripePaymentTransactionInfoPlugin that = (StripePaymentTransactionInfoPlugin) o;
+
+        return stripeResponseRecord != null ? stripeResponseRecord.equals(that.stripeResponseRecord) : that.stripeResponseRecord == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (stripeResponseRecord != null ? stripeResponseRecord.hashCode() : 0);
+        return result;
     }
 }

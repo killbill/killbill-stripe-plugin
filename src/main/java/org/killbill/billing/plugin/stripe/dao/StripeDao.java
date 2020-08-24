@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -126,7 +127,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                               final Session stripeSession,
                               final DateTime utcNow,
                               final UUID kbTenantId) throws SQLException {
-        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSession);
+        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSession, null);
 
         execute(dataSource.getConnection(),
                 new WithConnectionCallback<Void>() {
@@ -265,9 +266,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
     public void updateResponse(final StripeResponsesRecord stripeResponsesRecord,
                                final Map additionalMetadata) throws SQLException {
         final Map additionalDataMap = fromAdditionalData(stripeResponsesRecord.getAdditionalData());
-        for (final Object key : additionalMetadata.keySet()) {
-            additionalDataMap.put(key, additionalMetadata.get(key));
-        }
+        additionalDataMap.putAll(additionalMetadata);
 
         execute(dataSource.getConnection(),
                 new WithConnectionCallback<Void>() {

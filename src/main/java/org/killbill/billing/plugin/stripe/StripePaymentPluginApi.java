@@ -1,4 +1,5 @@
 /*
+ * Copyright 2020-2020 Equinix, Inc
  * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
@@ -34,7 +36,6 @@ import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.osgi.libs.killbill.OSGIConfigPropertiesService;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
-import org.killbill.billing.osgi.libs.killbill.OSGIKillbillLogService;
 import org.killbill.billing.payment.api.PaymentApiException;
 import org.killbill.billing.payment.api.PaymentMethodPlugin;
 import org.killbill.billing.payment.api.PluginProperty;
@@ -68,6 +69,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.stripe.exception.CardException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Customer;
@@ -80,6 +82,7 @@ import com.stripe.model.Source;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.PaymentIntentCancelParams;
 
 public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeResponsesRecord, StripeResponses, StripePaymentMethodsRecord, StripePaymentMethods> {
 
@@ -91,14 +94,20 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     private final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     private final StripeDao dao;
+    
+    static final List<String> metadataFilter = ImmutableList.of(
+    		"line_item_name",
+    		"line_item_amount",
+    		"line_item_currency",
+    		"line_item_quantity");
+
 
     public StripePaymentPluginApi(final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler,
                                   final OSGIKillbillAPI killbillAPI,
                                   final OSGIConfigPropertiesService configProperties,
-                                  final OSGIKillbillLogService logService,
                                   final Clock clock,
                                   final StripeDao dao) {
-        super(killbillAPI, configProperties, logService, clock, dao);
+        super(killbillAPI, configProperties, clock, dao);
         this.stripeConfigPropertiesConfigurationHandler = stripeConfigPropertiesConfigurationHandler;
         this.dao = dao;
     }
@@ -148,6 +157,19 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     if ("requires_confirmation".equals(intent.getStatus())) {
                         logger.info("Confirming Stripe transaction {}", intent.getId());
                         intent = intent.confirm(requestOptions);
+                    }
+                    // 3DS authorization failure - Fail payment according to property
+                    else if (stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId()).isCancelOn3DSAuthorizationFailure()
+                            && "requires_payment_method".equals(intent.getStatus())
+                            && intent.getLastPaymentError() != null
+                            && "payment_intent_authentication_failure".equals(intent.getLastPaymentError().getCode())) {
+                        logger.info("Cancelling Stripe PaymentIntent after 3DS authorization failure {}", intent.getId());
+                        intent = intent.cancel(
+                                    PaymentIntentCancelParams.builder()
+                                            .setCancellationReason(PaymentIntentCancelParams.CancellationReason.ABANDONED)
+                                            .build(),
+                                    requestOptions
+                            );
                     }
                     dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
                     wasRefreshed = true;
@@ -277,7 +299,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
                     final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
                     if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
-                        Map<String, Object> customerParams = new HashMap<>();
+                        final Map<String, Object> customerParams = new HashMap<>();
                         customerParams.put("source", paymentMethodIdInStripe);
                         logger.info("Creating customer in Stripe to be able to re-use the token");
                         final Customer customer = Customer.create(customerParams, requestOptions);
@@ -507,7 +529,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                   final RequestOptions requestOptions = buildRequestOptions(context);
 
                                                   final PaymentIntent intent = PaymentIntent.retrieve((String) StripeDao.fromAdditionalData(previousResponse.getAdditionalData()).get("id"), requestOptions);
-                                                  Map<String, Object> paymentIntentParams = new HashMap<String, Object>();
+                                                  final Map<String, Object> paymentIntentParams = new HashMap<String, Object>();
                                                   paymentIntentParams.put("amount_to_capture", KillBillMoney.toMinorUnits(currency.toString(), amount));
                                                   return intent.capture(paymentIntentParams, requestOptions);
                                               }
@@ -586,11 +608,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                   // The PaymentIntent API doesn't have a refund API - refund the charge created behind the scenes instead
                                                   final String lastChargeId = (String) additionalData.get("last_charge_id");
 
-                                                  Map<String, Object> params = new HashMap<>();
+                                                  final Map<String, Object> params = new HashMap<>();
                                                   params.put("charge", lastChargeId);
                                                   params.put("amount", KillBillMoney.toMinorUnits(currency.toString(), amount));
 
-                                                  final Refund refund = Refund.create(params, requestOptions);
+                                                  Refund.create(params, requestOptions);
 
                                                   return PaymentIntent.retrieve(paymentIntent, requestOptions);
                                               }
@@ -609,27 +631,31 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     RequestOptions buildRequestOptions(final TenantContext context) {
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
         return RequestOptions.builder()
-                             .setConnectTimeout(Integer.valueOf(stripeConfigProperties.getConnectionTimeout()))
-                             .setReadTimeout(Integer.valueOf(stripeConfigProperties.getReadTimeout()))
+                             .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
+                             .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
                              .setApiKey(stripeConfigProperties.getApiKey())
                              .build();
     }
 
     @Override
     public HostedPaymentPageFormDescriptor buildFormDescriptor(final UUID kbAccountId, final Iterable<PluginProperty> customFields, final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-
         final Account account = getAccount(kbAccountId, context);
-        String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
+        final String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
 
-        Map<String, Object> params = new HashMap<String, Object>();
-
+        final Map<String, Object> params = new HashMap<String, Object>();
+        final Map<String, Object> metadata = new HashMap<String, Object>();
+        StreamSupport.stream(customFields.spliterator(), false)
+        	.filter(entry -> !metadataFilter.contains(entry.getKey()))
+        	.forEach(p -> metadata.put(p.getKey(), p.getValue()));
+        params.put("metadata", metadata);
+        
         // Stripe doesn't support anything else yet
-        ArrayList<String> paymentMethodTypes = new ArrayList<>();
+        final ArrayList<String> paymentMethodTypes = new ArrayList<>();
         paymentMethodTypes.add("card");
         params.put("payment_method_types", paymentMethodTypes);
 
-        ArrayList<HashMap<String, Object>> lineItems = new ArrayList<>();
-        HashMap<String, Object> lineItem = new HashMap<String, Object>();
+        final ArrayList<HashMap<String, Object>> lineItems = new ArrayList<>();
+        final HashMap<String, Object> lineItem = new HashMap<String, Object>();
         lineItem.put("name", PluginProperties.getValue("line_item_name", "Authorization charge", customFields));
         lineItem.put("amount", PluginProperties.getValue("line_item_amount", "100", customFields));
         lineItem.put("currency", PluginProperties.getValue("line_item_currency", defaultCurrency, customFields));
@@ -637,14 +663,15 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         lineItems.add(lineItem);
         params.put("line_items", lineItems);
 
-        HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
+        final HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
         // Auth only
         paymentIntentData.put("capture_method", "manual");
         params.put("payment_intent_data", paymentIntentData);
 
         params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
-
+        final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
+        
         try {
             logger.info("Creating Stripe session");
             final Session session = Session.create(params, buildRequestOptions(context));
@@ -655,7 +682,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               session,
                               clock.getUTCNow(),
                               context.getTenantId());
-            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session)));
+            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey())));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
         } catch (final SQLException e) {
@@ -696,12 +723,17 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                              public PaymentIntent execute(final Account account, final StripePaymentMethodsRecord paymentMethodsRecord) throws StripeException {
                                                  final RequestOptions requestOptions = buildRequestOptions(context);
 
-                                                 Map<String, Object> paymentIntentParams = new HashMap<>();
+                                                 final Map<String, Object> paymentIntentParams = new HashMap<>();
                                                  paymentIntentParams.put("amount", KillBillMoney.toMinorUnits(currency.toString(), amount));
                                                  paymentIntentParams.put("currency", currency.toString());
                                                  paymentIntentParams.put("capture_method", transactionType == TransactionType.AUTHORIZE ? "manual" : "automatic");
                                                  // TODO Do we need to switch to manual confirmation to be able to set off_session=recurring?
                                                  paymentIntentParams.put("confirm", true);
+                                                 // See https://stripe.com/docs/api/payment_intents/create#create_payment_intent-return_url
+                                                 final String returnUrl = PluginProperties.findPluginPropertyValue("return_url", properties);
+                                                 if (returnUrl != null) {
+                                                     paymentIntentParams.put("return_url", returnUrl);
+                                                 }
                                                  // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
                                                  paymentIntentParams.put("confirmation_method", "automatic");
                                                  if (customerId != null) {
@@ -766,12 +798,22 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentMethodsRecord nonNullPaymentMethodsRecord = getStripePaymentMethodsRecord(kbPaymentMethodId, context);
         final DateTime utcNow = clock.getUTCNow();
 
-        final PaymentIntent response;
+        PaymentIntent response;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
             try {
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord);
+            } catch (final CardException e) {
+                try {
+                    final RequestOptions requestOptions = buildRequestOptions(context);
+                    final Charge charge = Charge.retrieve(e.getCharge(), requestOptions);
+                    final String paymentIntentId = charge.getPaymentIntent();
+                    final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
+                    response = paymentIntent;
+                } catch (final StripeException e2) {
+                    throw new PaymentPluginApiException("Error getting card error details from Stripe", e2);
+                }
             } catch (final StripeException e) {
                 throw new PaymentPluginApiException("Error connecting to Stripe", e);
             }

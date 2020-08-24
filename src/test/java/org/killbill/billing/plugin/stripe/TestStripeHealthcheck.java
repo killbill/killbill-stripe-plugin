@@ -1,4 +1,5 @@
 /*
+ * Copyright 2020-2020 Equinix, Inc
  * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
@@ -19,7 +20,6 @@ package org.killbill.billing.plugin.stripe;
 import java.util.Properties;
 
 import org.killbill.billing.osgi.api.Healthcheck;
-import org.killbill.billing.plugin.TestUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -27,7 +27,7 @@ public class TestStripeHealthcheck extends TestBase {
 
     @Test(groups = "slow")
     public void testHealthcheckNoTenant() {
-        final StripeConfigPropertiesConfigurationHandler noConfigHandler = new StripeConfigPropertiesConfigurationHandler(StripeActivator.PLUGIN_NAME, killbillApi, TestUtils.buildLogService(), null);
+        final StripeConfigPropertiesConfigurationHandler noConfigHandler = new StripeConfigPropertiesConfigurationHandler(StripeActivator.PLUGIN_NAME, killbillApi, null);
         noConfigHandler.setDefaultConfigurable(new StripeConfigProperties(new Properties(), ""));
         final Healthcheck healthcheck = new StripeHealthcheck(noConfigHandler);
         Assert.assertTrue(healthcheck.getHealthStatus(null, null).isHealthy());

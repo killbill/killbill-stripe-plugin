@@ -15,4 +15,7 @@
  * under the License.
  */
 
-alter table stripe_payment_methods add column is_default smallint not null default 0 after stripe_id;
+/* We cannot use timestamp in MySQL because of the implicit TimeZone conversions it does behind the scenes */
+CREATE DOMAIN datetime AS timestamp without time zone;
+
+CREATE DOMAIN longtext AS text;

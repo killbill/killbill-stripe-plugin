@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -19,7 +20,6 @@ package org.killbill.billing.plugin.stripe;
 import java.util.Properties;
 
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
-import org.killbill.billing.osgi.libs.killbill.OSGIKillbillLogService;
 import org.killbill.billing.plugin.api.notification.PluginTenantConfigurableConfigurationHandler;
 
 public class StripeConfigPropertiesConfigurationHandler extends PluginTenantConfigurableConfigurationHandler<StripeConfigProperties> {
@@ -28,9 +28,8 @@ public class StripeConfigPropertiesConfigurationHandler extends PluginTenantConf
 
     public StripeConfigPropertiesConfigurationHandler(final String pluginName,
                                                       final OSGIKillbillAPI osgiKillbillAPI,
-                                                      final OSGIKillbillLogService osgiKillbillLogService,
                                                       final String region) {
-        super(pluginName, osgiKillbillAPI, osgiKillbillLogService);
+        super(pluginName, osgiKillbillAPI);
         this.region = region;
     }
 

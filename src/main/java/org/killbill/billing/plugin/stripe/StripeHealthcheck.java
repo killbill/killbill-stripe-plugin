@@ -1,4 +1,5 @@
 /*
+ * Copyright 2020-2020 Equinix, Inc
  * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
@@ -59,8 +60,8 @@ public class StripeHealthcheck implements Healthcheck {
 
     private HealthStatus pingStripe(final StripeConfigProperties stripeConfigProperties) {
         final RequestOptions requestOptions = RequestOptions.builder()
-                                                            .setConnectTimeout(Integer.valueOf(stripeConfigProperties.getConnectionTimeout()))
-                                                            .setReadTimeout(Integer.valueOf(stripeConfigProperties.getReadTimeout()))
+                                                            .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
+                                                            .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
                                                             .setApiKey(stripeConfigProperties.getApiKey())
                                                             .build();
 
@@ -88,7 +89,9 @@ public class StripeHealthcheck implements Healthcheck {
 
     public static class StripeHealthcheckResponse extends HashMap<String, Object> implements StripeObjectInterface {
 
-        private StripeResponse lastResponse;
+        private static final long serialVersionUID = 1L;
+
+        private transient StripeResponse lastResponse;
 
         @Override
         public StripeResponse getLastResponse() {

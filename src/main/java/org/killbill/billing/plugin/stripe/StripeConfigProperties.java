@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -13,12 +14,12 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package org.killbill.billing.plugin.stripe;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,7 @@ public class StripeConfigProperties {
 
     private final String region;
     private final String apiKey;
+    private final String publicKey;
     private final String connectionTimeout;
     private final String readTimeout;
     private final Period pendingPaymentExpirationPeriod;
@@ -52,10 +54,12 @@ public class StripeConfigProperties {
     private final Map<String, Period> paymentMethodToExpirationPeriod = new LinkedHashMap<String, Period>();
     private final String chargeDescription;
     private final String chargeStatementDescriptor;
+    private final boolean cancelOn3DSAuthorizationFailure;
 
     public StripeConfigProperties(final Properties properties, final String region) {
         this.region = region;
         this.apiKey = properties.getProperty(PROPERTY_PREFIX + "apiKey");
+        this.publicKey = properties.getProperty(PROPERTY_PREFIX + "publicKey");
         this.connectionTimeout = properties.getProperty(PROPERTY_PREFIX + "connectionTimeout", DEFAULT_CONNECTION_TIMEOUT);
         this.readTimeout = properties.getProperty(PROPERTY_PREFIX + "readTimeout", DEFAULT_READ_TIMEOUT);
         this.pendingPaymentExpirationPeriod = readPendingExpirationProperty(properties);
@@ -63,10 +67,15 @@ public class StripeConfigProperties {
         this.pendingHppPaymentWithoutCompletionExpirationPeriod = readPendingHppPaymentWithoutCompletionExpirationPeriod(properties);
         this.chargeDescription = Ascii.truncate(MoreObjects.firstNonNull(properties.getProperty(PROPERTY_PREFIX + "chargeDescription"), "Kill Bill charge"), 22, "...");
         this.chargeStatementDescriptor = Ascii.truncate(MoreObjects.firstNonNull(properties.getProperty(PROPERTY_PREFIX + "chargeStatementDescriptor"), "Kill Bill charge"), 22, "...");
+        this.cancelOn3DSAuthorizationFailure = readCancelOn3DSAuthorizationFailure(properties);
     }
 
     public String getApiKey() {
         return apiKey;
+    }
+
+    public String getPublicKey() {
+        return publicKey;
     }
 
     public String getConnectionTimeout() {
@@ -83,6 +92,10 @@ public class StripeConfigProperties {
 
     public String getChargeStatementDescriptor() {
         return chargeStatementDescriptor;
+    }
+
+    public boolean isCancelOn3DSAuthorizationFailure() {
+        return cancelOn3DSAuthorizationFailure;
     }
 
     public Period getPendingPaymentExpirationPeriod(@Nullable final String paymentMethod) {
@@ -113,9 +126,9 @@ public class StripeConfigProperties {
         }
 
         // User has defined per-payment method overrides
-        for (final String paymentMethod : paymentMethodToExpirationPeriodString.keySet()) {
+        for (final Entry<String, String> entry : paymentMethodToExpirationPeriodString.entrySet()) {
             try {
-                paymentMethodToExpirationPeriod.put(paymentMethod.toLowerCase(), Period.parse(paymentMethodToExpirationPeriodString.get(paymentMethod)));
+                paymentMethodToExpirationPeriod.put(entry.getKey().toLowerCase(), Period.parse(entry.getValue()));
             } catch (final IllegalArgumentException e) { /* Ignore */ }
         }
 
@@ -142,6 +155,12 @@ public class StripeConfigProperties {
         }
 
         return Period.parse(DEFAULT_PENDING_HPP_PAYMENT_WITHOUT_COMPLETION_EXPIRATION_PERIOD);
+    }
+
+    private boolean readCancelOn3DSAuthorizationFailure(Properties properties) {
+        return Boolean.parseBoolean(
+                properties.getProperty(PROPERTY_PREFIX + "cancelOn3DSAuthorizationFailure")
+        );
     }
 
     private synchronized void refillMap(final Map<String, String> map, final String stringToSplit) {

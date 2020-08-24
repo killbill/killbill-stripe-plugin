@@ -1,5 +1,6 @@
 /*
- * Copyright 2014-2019 The Billing Project, LLC
+ * Copyright 2020-2020 Equinix, Inc
+ * Copyright 2014-2020 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -60,9 +61,19 @@ public class StripeCheckoutServlet extends PluginHealthcheck {
     @POST
     public Result createSession(@Named("kbAccountId") final UUID kbAccountId,
                                 @Named("successUrl") final Optional<String> successUrl,
+                                @Named("cancelUrl") final Optional<String> cancelUrl,
+                                @Named("lineItemName") final Optional<String> lineItemName,
+                                @Named("kbInvoiceId") final Optional<String> kbInvoiceId,
+                                @Named("lineItemAmount") final Optional<Integer> lineItemAmount,
                                 @Local @Named("killbill_tenant") final Tenant tenant) throws JsonProcessingException, PaymentPluginApiException {
         final CallContext context = new PluginCallContext(StripeActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());
-        final ImmutableList<PluginProperty> customFields = ImmutableList.of(new PluginProperty("success_url", successUrl.orElse("https://example.com/success"), false));
+        final ImmutableList<PluginProperty> customFields = ImmutableList.of(
+                new PluginProperty("kb_account_id", kbAccountId.toString(), false),
+                new PluginProperty("kb_invoice_id", kbInvoiceId.orElse(null), false),
+                new PluginProperty("success_url", successUrl.orElse("https://example.com/success"), false),
+                new PluginProperty("cancel_url", cancelUrl.orElse("https://example.com/cancel"), false),
+                new PluginProperty("line_item_name", lineItemName.orElse("Authorization charge"), false),
+                new PluginProperty("line_item_amount", lineItemAmount.orElse(100), false));
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
                                                                                                                            customFields,
                                                                                                                            ImmutableList.of(),
