@@ -32,10 +32,10 @@ import org.killbill.billing.payment.api.TransactionType;
 import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginPaymentTransactionInfoPlugin;
-
-import com.google.common.base.Strings;
 import org.killbill.billing.plugin.stripe.dao.StripeDao;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeResponsesRecord;
+
+import com.google.common.base.Strings;
 
 public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransactionInfoPlugin {
 
@@ -91,6 +91,12 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
             if ("canceled".equals(status)) {
                 // Intent has been cancelled, mark this as error.
                 return PaymentPluginStatus.ERROR;
+            }
+            if ("requires_payment_method".equals(status)
+                && additionalData.get("last_payment_error") != null
+                && "payment_intent_authentication_failure".equals(((Map) additionalData.get("last_payment_error")).get("code"))) {
+                // Failed 3DS intent, but not yet cancelled
+                return PaymentPluginStatus.PENDING;
             }
             return PaymentPluginStatus.UNDEFINED;
         } else {

@@ -489,13 +489,16 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                              paymentMethodPlugin.getKbPaymentMethodId(),
                                                                                                              authorizationTransaction.getAmount(),
                                                                                                              authorizationTransaction.getCurrency(),
-                                                                                                             ImmutableList.of(),
+                                                                                                             ImmutableList.of(new PluginProperty("return_url", "https://killbill.io/", false)),
                                                                                                              context);
         TestUtils.updatePaymentTransaction(authorizationTransaction, authorizationInfoPlugin);
         verifyPaymentTransactionInfoPlugin(payment, authorizationTransaction, authorizationInfoPlugin, PaymentPluginStatus.PENDING);
 
         final Map nextAction = (Map) PluginProperties.findPluginProperties("next_action", authorizationInfoPlugin.getProperties()).iterator().next().getValue();
-        final String redirectUrl = (String) ((Map) nextAction.get("useStripeSdk")).get("stripe_js");
+        assertNotNull(nextAction);
+        assertEquals(nextAction.get("type"), "redirect_to_url");
+        final String redirectUrl = (String) ((Map) nextAction.get("redirectToUrl")).get("url");
+        assertNotNull(redirectUrl);
         System.out.println("Go to: " + redirectUrl);
         // Set a breakpoint here
         System.out.flush();
@@ -531,13 +534,16 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                        paymentMethodPlugin.getKbPaymentMethodId(),
                                                                                                        purchaseTransaction.getAmount(),
                                                                                                        purchaseTransaction.getCurrency(),
-                                                                                                       ImmutableList.of(),
+                                                                                                       ImmutableList.of(new PluginProperty("return_url", "https://killbill.io/", false)),
                                                                                                        context);
         TestUtils.updatePaymentTransaction(purchaseTransaction, purchaseInfoPlugin);
         verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, PaymentPluginStatus.PENDING);
 
         final Map nextAction = (Map) PluginProperties.findPluginProperties("next_action", purchaseInfoPlugin.getProperties()).iterator().next().getValue();
-        final String redirectUrl = (String) ((Map) nextAction.get("useStripeSdk")).get("stripe_js");
+        assertNotNull(nextAction);
+        assertEquals(nextAction.get("type"), "redirect_to_url");
+        final String redirectUrl = (String) ((Map) nextAction.get("redirectToUrl")).get("url");
+        assertNotNull(redirectUrl);
         System.out.println("Go to: " + redirectUrl);
         // Set a breakpoint here
         System.out.flush();
@@ -560,16 +566,21 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                        paymentMethodPlugin.getKbPaymentMethodId(),
                                                                                                        purchaseTransaction.getAmount(),
                                                                                                        purchaseTransaction.getCurrency(),
-                                                                                                       ImmutableList.of(),
+                                                                                                       ImmutableList.of(new PluginProperty("return_url", "https://killbill.io/", false)),
                                                                                                        context);
         TestUtils.updatePaymentTransaction(purchaseTransaction, purchaseInfoPlugin);
         verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, PaymentPluginStatus.PENDING);
+
         final Map nextAction = (Map) PluginProperties.findPluginProperties("next_action", purchaseInfoPlugin.getProperties()).iterator().next().getValue();
-        final String redirectUrl = (String) ((Map) nextAction.get("useStripeSdk")).get("stripe_js");
+        assertNotNull(nextAction);
+        assertEquals(nextAction.get("type"), "redirect_to_url");
+        final String redirectUrl = (String) ((Map) nextAction.get("redirectToUrl")).get("url");
+        assertNotNull(redirectUrl);
         System.out.println("Go to: " + redirectUrl);
         // Set a breakpoint here
         // When presented with an authorization screen fail the authorization
         System.out.flush();
+
         final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginRefreshed = stripePaymentPluginApi.getPaymentInfo(account.getId(),
                                                                                                                                payment.getId(),
                                                                                                                                ImmutableList.of(),
