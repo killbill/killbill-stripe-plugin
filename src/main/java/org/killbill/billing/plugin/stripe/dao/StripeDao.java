@@ -86,8 +86,8 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                    stripeId,
                                    (short) FALSE,
                                    asString(additionalDataMap),
-                                   toTimestamp(utcNow),
-                                   toTimestamp(utcNow),
+                                   toLocalDateTime(utcNow),
+                                   toLocalDateTime(utcNow),
                                    kbTenantId.toString()
                                    )
                            .execute();
@@ -109,7 +109,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                         DSL.using(conn, dialect, settings)
                            .update(STRIPE_PAYMENT_METHODS)
                            .set(STRIPE_PAYMENT_METHODS.ADDITIONAL_DATA, asString(additionalDataMap))
-                           .set(STRIPE_PAYMENT_METHODS.UPDATED_DATE, toTimestamp(utcNow))
+                           .set(STRIPE_PAYMENT_METHODS.UPDATED_DATE, toLocalDateTime(utcNow))
                            .where(STRIPE_PAYMENT_METHODS.KB_PAYMENT_METHOD_ID.equal(kbPaymentMethodId.toString()))
                            .and(STRIPE_PAYMENT_METHODS.STRIPE_ID.equal(stripeId))
                            .and(STRIPE_PAYMENT_METHODS.KB_TENANT_ID.equal(kbTenantId.toString()))
@@ -147,7 +147,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                    kbPaymentTransactionId == null ? null : kbPaymentTransactionId.toString(),
                                    stripeSession.getId(),
                                    asString(additionalDataMap),
-                                   toTimestamp(utcNow),
+                                   toLocalDateTime(utcNow),
                                    kbTenantId.toString())
                            .execute();
                         return null;
@@ -209,7 +209,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                                  currency == null ? null : currency.name(),
                                                  stripePaymentIntent.getId(),
                                                  asString(additionalDataMap),
-                                                 toTimestamp(utcNow),
+                                                 toLocalDateTime(utcNow),
                                                  kbTenantId.toString())
                                          .returning()
                                          .fetchOne();

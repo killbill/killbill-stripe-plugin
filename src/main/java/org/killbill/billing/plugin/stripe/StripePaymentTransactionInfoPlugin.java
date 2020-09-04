@@ -18,6 +18,7 @@
 package org.killbill.billing.plugin.stripe;
 
 import java.math.BigDecimal;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,8 +50,10 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
         final String firstPaymentReferenceId = (String) additionalData.get("last_charge_id");
         final String secondPaymentReferenceId = (String) additionalData.get("last_charge_authorization_code");
 
-        final DateTime responseDate = new DateTime(stripeResponsesRecord.getCreatedDate(), DateTimeZone.UTC);
-
+        final DateTime responseDate = new DateTime(stripeResponsesRecord.getCreatedDate()
+                                                                        .atZone(ZoneOffset.UTC)
+                                                                        .toInstant()
+                                                                        .toEpochMilli(), DateTimeZone.UTC);
         return new StripePaymentTransactionInfoPlugin(stripeResponsesRecord,
                                                       UUID.fromString(stripeResponsesRecord.getKbPaymentId()),
                                                       UUID.fromString(stripeResponsesRecord.getKbPaymentTransactionId()),
