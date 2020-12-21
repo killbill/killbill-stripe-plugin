@@ -605,7 +605,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertNotNull(sessionId);
 
         System.out.println("sessionId: " + sessionId);
-        // Set a breakpoint here and open the index.html test file (use card 4242424242424242)
+        // Set a breakpoint here
+        // Modify src/test/resources/index.html to use your Stripe public key ...
+        // ... then open the file in your browser and test with card 4242424242424242
         System.out.flush();
 
         // Still no payment method

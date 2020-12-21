@@ -77,6 +77,7 @@ import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentSource;
+import com.stripe.model.PaymentSourceCollection;
 import com.stripe.model.Refund;
 import com.stripe.model.Source;
 import com.stripe.model.Token;
@@ -424,8 +425,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
-            final Iterable<? extends HasId> stripeSources = Customer.retrieve(stripeCustomerId, requestOptions).getSources().autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
+            final PaymentSourceCollection psc = Customer.retrieve(stripeCustomerId, requestOptions).getSources();
+            if (psc != null) {
+                final Iterable<? extends HasId> stripeSources = psc.autoPagingIterable();
+                syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
+            }
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Error connecting to Stripe", e);
         } catch (final PaymentApiException e) {
