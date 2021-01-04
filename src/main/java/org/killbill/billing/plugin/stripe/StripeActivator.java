@@ -61,7 +61,7 @@ public class StripeActivator extends KillbillActivatorBase {
         registerHealthcheck(context, stripeHealthcheck);
 
         // Register the payment plugin
-        Stripe.setAppInfo("Kill Bill", "7.1.0", "https://killbill.io");
+        Stripe.setAppInfo("Kill Bill", "7.2.0", "https://killbill.io");
         final StripePaymentPluginApi pluginApi = new StripePaymentPluginApi(stripeConfigPropertiesConfigurationHandler,
                                                                             killbillAPI,
                                                                             configProperties,
