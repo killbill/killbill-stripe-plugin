@@ -760,7 +760,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
                                                  final ImmutableList.Builder<String> paymentMethodTypesBuilder = ImmutableList.builder();
                                                  paymentMethodTypesBuilder.add("card");
-                                                 if (transactionType == TransactionType.PURCHASE) {
+                                                 if (transactionType == TransactionType.PURCHASE && currency == Currency.USD) {
                                                      // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
                                                      paymentMethodTypesBuilder.add("ach_debit");
                                                  }
