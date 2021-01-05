@@ -780,13 +780,17 @@ public class TestStripePaymentPluginApi extends TestBase {
         // so I reverse-engineered the call that stripe.js makes...
         String bankAccount = null;
         try {
-            bankAccount = new StripeJsClient().createBankAccount();
+            bankAccount = new StripeJsClient().createBankAccount(stripeConfigPropertiesConfigurationHandler.getConfigurable(super.context.getTenantId()).getPublicKey());
         } catch (Exception e) {
             fail(e.getMessage());
         }
 
         Map<String, Object> customerParams = new HashMap<String, Object>();
         customerParams.put("source", bankAccount);
+
+        // ensure that the sources are included in the response
+        customerParams.put("expand", ImmutableList.of("sources"));
+
         // Add also a card on the account, to verify we support multiple payment method types per account
         customerParams.put("payment_method", "pm_card_visa");
         final Customer customer = Customer.create(customerParams, options);
@@ -822,14 +826,14 @@ public class TestStripePaymentPluginApi extends TestBase {
             super("https://api.stripe.com/v1/tokens", null, null, null, null, false, 60000, 60000);
         }
 
-        public String createBankAccount() throws Exception {
+        public String createBankAccount(String stripePublishableKey) throws Exception {
             final String accountNumber = "000123456789";
             final String country = "US";
             final String currency = "usd";
             final String routingNumber = "110000000";
             final String name = "Jenny+Rosen";
             final String type = "individual";
-            final String stripePublishableKey = "pk_test_xueTzlxxkKSa5Q47NrnLPcle";
+
             final String body = "bank_account[account_number]=" + accountNumber + "&bank_account[country]=" + country + "&bank_account[currency]=" + currency + "&bank_account[routing_number]=" + routingNumber + "&bank_account[account_holder_name]=" + name + "&bank_account[account_holder_type]=" + type + "&key=" + stripePublishableKey;
 
             final BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);

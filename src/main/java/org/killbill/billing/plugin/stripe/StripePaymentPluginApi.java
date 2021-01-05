@@ -102,6 +102,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     		"line_item_currency",
     		"line_item_quantity");
 
+    // needed for API calls to expand the response to contain the 'Sources'
+    // https://stripe.com/docs/api/expanding_objects?lang=java
+    private final Map<String, Object> expandSourcesParams;
+
 
     public StripePaymentPluginApi(final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler,
                                   final OSGIKillbillAPI killbillAPI,
@@ -111,6 +115,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         super(killbillAPI, configProperties, clock, dao);
         this.stripeConfigPropertiesConfigurationHandler = stripeConfigPropertiesConfigurationHandler;
         this.dao = dao;
+        expandSourcesParams = new HashMap<String, Object>();
+        expandSourcesParams.put("expand", ImmutableList.of("sources"));
     }
 
 
@@ -338,7 +344,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     // The Stripe bankAccountId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
                     final String existingCustomerId = getCustomerId(kbAccountId, context);
-                    final PaymentSource paymentSource = Customer.retrieve(existingCustomerId, requestOptions)
+                    final PaymentSource paymentSource = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions)
                                                                 .getSources()
                                                                 .retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(paymentSource);
@@ -425,7 +431,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
-            final PaymentSourceCollection psc = Customer.retrieve(stripeCustomerId, requestOptions).getSources();
+            final PaymentSourceCollection psc = Customer.retrieve(stripeCustomerId, expandSourcesParams, requestOptions).getSources();
             if (psc != null) {
                 final Iterable<? extends HasId> stripeSources = psc.autoPagingIterable();
                 syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
