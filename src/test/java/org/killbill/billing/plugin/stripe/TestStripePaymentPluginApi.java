@@ -791,9 +791,13 @@ public class TestStripePaymentPluginApi extends TestBase {
         // ensure that the sources are included in the response
         customerParams.put("expand", ImmutableList.of("sources"));
 
-        // Add also a card on the account, to verify we support multiple payment method types per account
-        customerParams.put("payment_method", "pm_card_visa");
         final Customer customer = Customer.create(customerParams, options);
+
+        // Add also a card on the account, to verify we support multiple payment method types per account
+        PaymentMethod paymentMethod = PaymentMethod.retrieve("pm_card_visa", options);
+        Map<String, Object> pmParams = new HashMap<>();
+        pmParams.put("customer", customer.getId());
+        PaymentMethod updatedPaymentMethod = paymentMethod.attach(pmParams, options);
 
         // Verify the bank account
         final Map<String, Object> params = new HashMap<String, Object>();
