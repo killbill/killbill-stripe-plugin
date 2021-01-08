@@ -605,7 +605,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertNotNull(sessionId);
 
         System.out.println("sessionId: " + sessionId);
-        // Set a breakpoint here and open the index.html test file (use card 4242424242424242)
+        // Set a breakpoint here
+        // Modify src/test/resources/index.html to use your Stripe public key ...
+        // ... then open the file in your browser and test with card 4242424242424242
         System.out.flush();
 
         // Still no payment method
@@ -778,16 +780,24 @@ public class TestStripePaymentPluginApi extends TestBase {
         // so I reverse-engineered the call that stripe.js makes...
         String bankAccount = null;
         try {
-            bankAccount = new StripeJsClient().createBankAccount();
+            bankAccount = new StripeJsClient().createBankAccount(stripeConfigPropertiesConfigurationHandler.getConfigurable(super.context.getTenantId()).getPublicKey());
         } catch (Exception e) {
             fail(e.getMessage());
         }
 
         Map<String, Object> customerParams = new HashMap<String, Object>();
         customerParams.put("source", bankAccount);
-        // Add also a card on the account, to verify we support multiple payment method types per account
-        customerParams.put("payment_method", "pm_card_visa");
+
+        // ensure that the sources are included in the response
+        customerParams.put("expand", ImmutableList.of("sources"));
+
         final Customer customer = Customer.create(customerParams, options);
+
+        // Add also a card on the account, to verify we support multiple payment method types per account
+        PaymentMethod paymentMethod = PaymentMethod.retrieve("pm_card_visa", options);
+        Map<String, Object> pmParams = new HashMap<>();
+        pmParams.put("customer", customer.getId());
+        PaymentMethod updatedPaymentMethod = paymentMethod.attach(pmParams, options);
 
         // Verify the bank account
         final Map<String, Object> params = new HashMap<String, Object>();
@@ -820,14 +830,14 @@ public class TestStripePaymentPluginApi extends TestBase {
             super("https://api.stripe.com/v1/tokens", null, null, null, null, false, 60000, 60000);
         }
 
-        public String createBankAccount() throws Exception {
+        public String createBankAccount(String stripePublishableKey) throws Exception {
             final String accountNumber = "000123456789";
             final String country = "US";
             final String currency = "usd";
             final String routingNumber = "110000000";
             final String name = "Jenny+Rosen";
             final String type = "individual";
-            final String stripePublishableKey = "pk_test_xueTzlxxkKSa5Q47NrnLPcle";
+
             final String body = "bank_account[account_number]=" + accountNumber + "&bank_account[country]=" + country + "&bank_account[currency]=" + currency + "&bank_account[routing_number]=" + routingNumber + "&bank_account[account_holder_name]=" + name + "&bank_account[account_holder_type]=" + type + "&key=" + stripePublishableKey;
 
             final BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);

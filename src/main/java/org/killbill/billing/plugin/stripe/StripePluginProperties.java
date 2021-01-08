@@ -225,7 +225,7 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("cancel_url", session.getCancelUrl());
         additionalDataMap.put("client_reference_id", session.getClientReferenceId());
         additionalDataMap.put("customer_id", session.getCustomer());
-        additionalDataMap.put("display_items", session.getDisplayItems());
+        additionalDataMap.put("line_items", session.getLineItems());
         additionalDataMap.put("id", session.getId());
         additionalDataMap.put("livemode", session.getLivemode());
         additionalDataMap.put("locale", session.getLocale());
