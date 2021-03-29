@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
@@ -57,6 +59,38 @@ public class TestBase {
     protected StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     protected StripeDao dao;
 
+    private static Account buildAccount(final Currency currency, final String country) {
+        return buildAccount(currency, UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString().substring(0, 16), country);
+    }
+
+    // Currently needed as TestUtils.buildAccount does not create a valid e-mail address
+    private static Account buildAccount(final Currency currency, final String address1, final String address2, final String city, final String stateOrProvince, final String postalCode, final String country) {
+        Account account = (Account)Mockito.mock(Account.class);
+        Mockito.when(account.getId()).thenReturn(UUID.randomUUID());
+        Mockito.when(account.getExternalKey()).thenReturn(UUID.randomUUID().toString());
+        Mockito.when(account.getName()).thenReturn(UUID.randomUUID().toString());
+        Mockito.when(account.getFirstNameLength()).thenReturn(4);
+        Mockito.when(account.getEmail()).thenReturn(UUID.randomUUID().toString() + "@example.com");
+        Mockito.when(account.getBillCycleDayLocal()).thenReturn(2);
+        Mockito.when(account.getCurrency()).thenReturn(currency);
+        Mockito.when(account.getPaymentMethodId()).thenReturn(UUID.randomUUID());
+        Mockito.when(account.getTimeZone()).thenReturn(DateTimeZone.getDefault());
+        Mockito.when(account.getLocale()).thenReturn("en-US");
+        Mockito.when(account.getAddress1()).thenReturn(address1);
+        Mockito.when(account.getAddress2()).thenReturn(address2);
+        Mockito.when(account.getCompanyName()).thenReturn(UUID.randomUUID().toString());
+        Mockito.when(account.getCity()).thenReturn(city);
+        Mockito.when(account.getStateOrProvince()).thenReturn(stateOrProvince);
+        Mockito.when(account.getPostalCode()).thenReturn(postalCode);
+        Mockito.when(account.getCountry()).thenReturn(country);
+        Mockito.when(account.getPhone()).thenReturn(UUID.randomUUID().toString().substring(0, 25));
+        Mockito.when(account.isMigrated()).thenReturn(true);
+        Mockito.when(account.getCreatedDate()).thenReturn(new DateTime(2016, 1, 22, 10, 56, 47, DateTimeZone.UTC));
+        Mockito.when(account.getUpdatedDate()).thenReturn(new DateTime(2016, 1, 22, 10, 56, 48, DateTimeZone.UTC));
+        return account;
+    }
+
+
     @BeforeMethod(groups = {"slow", "integration"})
     public void setUp() throws Exception {
         EmbeddedDbHelper.instance().resetDB();
@@ -67,7 +101,7 @@ public class TestBase {
         context = Mockito.mock(CallContext.class);
         Mockito.when(context.getTenantId()).thenReturn(UUID.randomUUID());
 
-        account = TestUtils.buildAccount(DEFAULT_CURRENCY, DEFAULT_COUNTRY);
+        account = buildAccount(DEFAULT_CURRENCY, DEFAULT_COUNTRY);
         killbillApi = TestUtils.buildOSGIKillbillAPI(account);
         customFieldUserApi = Mockito.mock(CustomFieldUserApi.class);
         Mockito.when(killbillApi.getCustomFieldUserApi()).thenReturn(customFieldUserApi);
