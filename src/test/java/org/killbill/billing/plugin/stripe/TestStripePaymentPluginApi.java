@@ -793,7 +793,6 @@ public class TestStripePaymentPluginApi extends TestBase {
         // so I reverse-engineered the call that stripe.js makes...
         String bankAccount = null;
         try {
-            System.out.println(super.context.getTenantId());
             // make sure to have your public key included in src/test/resources/stripe.properties (see README.md)
             bankAccount = new StripeJsClient().createBankAccount(stripeConfigPropertiesConfigurationHandler.getConfigurable(super.context.getTenantId()).getPublicKey());
         } catch (Exception e) {
