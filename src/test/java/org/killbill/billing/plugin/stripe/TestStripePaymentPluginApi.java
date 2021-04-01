@@ -597,7 +597,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         }
     }
 
-    @Test(groups = "integration", enabled = true, description = "Manual test")
+    @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testHPP() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
         final List<String> paymentMethodTypes = new ArrayList<String>();
