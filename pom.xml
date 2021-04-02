@@ -114,6 +114,8 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
+            <!-- 3.14.0 broke returning() on MySQL :( -->
+            <version>3.13.5</version>
         </dependency>
         <dependency>
             <groupId>org.kill-bill.billing</groupId>
@@ -195,8 +197,35 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.ning.maven.plugins</groupId>
+                <artifactId>maven-dependency-versions-check-plugin</artifactId>
+                <configuration>
+                    <exceptions>
+                        <exception>
+                            <groupId>org.jooq</groupId>
+                            <artifactId>jooq</artifactId>
+                            <expectedVersion>3.14.7</expectedVersion>
+                            <resolvedVersion>3.13.5</resolvedVersion>
+                        </exception>
+                    </exceptions>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <configuration>
+                    <rules>
+                        <requireUpperBoundDeps>
+                            <excludes>
+                                <exclude>org.jooq:jooq</exclude>
+                            </excludes>
+                        </requireUpperBoundDeps>
+                    </rules>
+                </configuration>
             </plugin>
         </plugins>
     </build>
