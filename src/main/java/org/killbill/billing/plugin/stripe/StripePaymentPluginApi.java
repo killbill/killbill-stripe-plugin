@@ -79,6 +79,7 @@ import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentSource;
 import com.stripe.model.PaymentSourceCollection;
 import com.stripe.model.Refund;
+import com.stripe.model.SetupIntent;
 import com.stripe.model.Source;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
@@ -86,6 +87,17 @@ import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCancelParams;
 
 public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeResponsesRecord, StripeResponses, StripePaymentMethodsRecord, StripePaymentMethods> {
+
+    private enum CaptureMethod {
+        AUTOMATIC("automatic"),
+        MANUAL("manual");
+
+        public final String value;
+
+        CaptureMethod(String value) {
+            this.value = value;
+        }
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(StripePaymentPluginApi.class);
 
@@ -95,12 +107,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     private final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     private final StripeDao dao;
-    
-    static final List<String> metadataFilter = ImmutableList.of(
-    		"line_item_name",
-    		"line_item_amount",
-    		"line_item_currency",
-    		"line_item_quantity");
+
+    static final List<String> metadataFilter = ImmutableList.of("payment_method_types");
 
     // needed for API calls to expand the response to contain the 'Sources'
     // https://stripe.com/docs/api/expanding_objects?lang=java
@@ -252,31 +260,27 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     throw new PaymentPluginApiException("INTERNAL", "Unable to add payment method: missing StripeHppRequestsRecord for sessionId " + sessionId);
                 }
 
-                final String paymentIntentId = (String) StripeDao.fromAdditionalData(hppRecord.getAdditionalData()).get("payment_intent_id");
-                final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
-                if ("requires_capture".equals(paymentIntent.getStatus())) {
-                    // Void it
-                    logger.info("Voiding Stripe transaction {}", paymentIntent.getId());
-                    paymentIntent.cancel(requestOptions);
-
+                final String setupIntentId = (String) StripeDao.fromAdditionalData(hppRecord.getAdditionalData()).get("setup_intent_id");
+                final SetupIntent setupIntent = SetupIntent.retrieve(setupIntentId, requestOptions);
+                if ("succeeded".equals(setupIntent.getStatus())) {
                     final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
                     if (existingCustomerId == null) {
                         // Add magic custom field
-                        logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, paymentIntent.getCustomer());
+                        logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, setupIntent.getCustomer());
                         killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.of(new PluginCustomField(kbAccountId,
                                                                                                                    ObjectType.ACCOUNT,
                                                                                                                    "STRIPE_CUSTOMER_ID",
-                                                                                                                   paymentIntent.getCustomer(),
+                                                                                                                   setupIntent.getCustomer(),
                                                                                                                    clock.getUTCNow())), context);
-                    } else if (!existingCustomerId.equals(paymentIntent.getCustomer())) {
-                        throw new PaymentPluginApiException("USER", "Unable to add payment method : paymentIntent customerId is " + paymentIntent.getCustomer() + " but account already mapped to " + existingCustomerId);
+                    } else if (!existingCustomerId.equals(setupIntent.getCustomer())) {
+                        throw new PaymentPluginApiException("USER", "Unable to add payment method : setupIntent customerId is " + setupIntent.getCustomer() + " but account already mapped to " + existingCustomerId);
                     }
 
                     // Used below to create the row in the plugin
                     // TODO This implicitly assumes the payment method type if "payment_method", is this always true?
-                    paymentMethodIdInStripe = paymentIntent.getPaymentMethod();
+                    paymentMethodIdInStripe = setupIntent.getPaymentMethod();
                 } else {
-                    throw new PaymentPluginApiException("EXTERNAL", "Unable to add payment method: paymentIntent is " + paymentIntent.getStatus());
+                    throw new PaymentPluginApiException("EXTERNAL", "Unable to add payment method: setupIntent status is: " + setupIntent.getStatus());
                 }
             } catch (final SQLException e) {
                 throw new PaymentPluginApiException("Unable to add payment method", e);
@@ -425,10 +429,13 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             // Start with PaymentMethod...
             final Map<String, Object> paymentMethodParams = new HashMap<String, Object>();
             paymentMethodParams.put("customer", stripeCustomerId);
-            // Only supported type by Stripe for now
             paymentMethodParams.put("type", "card");
-            final Iterable<PaymentMethod> stripePaymentMethods = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
-            syncPaymentMethods(kbAccountId, stripePaymentMethods, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
+            final Iterable<PaymentMethod> stripePaymentMethodsCard = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
+            syncPaymentMethods(kbAccountId, stripePaymentMethodsCard, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
+
+            paymentMethodParams.put("type", "sepa_debit");
+            final Iterable<PaymentMethod> stripePaymentMethodsSepaDebit = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
+            syncPaymentMethods(kbAccountId, stripePaymentMethodsSepaDebit, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
             final PaymentSourceCollection psc = Customer.retrieve(stripeCustomerId, expandSourcesParams, requestOptions).getSources();
@@ -649,8 +656,32 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     @Override
     public HostedPaymentPageFormDescriptor buildFormDescriptor(final UUID kbAccountId, final Iterable<PluginProperty> customFields, final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
+        final RequestOptions requestOptions = buildRequestOptions(context);
+
         final Account account = getAccount(kbAccountId, context);
-        final String defaultCurrency = account.getCurrency() != null ? account.getCurrency().name() : "USD";
+
+        String stripeCustomerId = getCustomerIdNoException(kbAccountId, context);
+        if (stripeCustomerId == null) {
+            // add new customer to stripe account
+            Map<String, Object> address = new HashMap<>();
+            address.put("city", account.getCity());
+            address.put("country", account.getCountry());
+            address.put("line1", account.getAddress1());
+            address.put("line2", account.getAddress2());
+            address.put("postal_code", account.getPostalCode());
+            address.put("state", account.getStateOrProvince());
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", account.getEmail());
+            params.put("name", account.getName());
+            params.put("address", address);
+            params.put("description", "created via KB");
+            try {
+                Customer customer = Customer.create(params, requestOptions);
+                stripeCustomerId = customer.getId();
+            } catch (StripeException e) {
+                throw new PaymentPluginApiException("Unable to create Stripe customer", e);
+            }
+        }
 
         final Map<String, Object> params = new HashMap<String, Object>();
         final Map<String, Object> metadata = new HashMap<String, Object>();
@@ -658,33 +689,23 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         	.filter(entry -> !metadataFilter.contains(entry.getKey()))
         	.forEach(p -> metadata.put(p.getKey(), p.getValue()));
         params.put("metadata", metadata);
-        
-        // Stripe doesn't support anything else yet
-        final ArrayList<String> paymentMethodTypes = new ArrayList<>();
-        paymentMethodTypes.add("card");
-        params.put("payment_method_types", paymentMethodTypes);
+        params.put("customer", stripeCustomerId);
 
-        final ArrayList<HashMap<String, Object>> lineItems = new ArrayList<>();
-        final HashMap<String, Object> lineItem = new HashMap<String, Object>();
-        lineItem.put("name", PluginProperties.getValue("line_item_name", "Authorization charge", customFields));
-        lineItem.put("amount", PluginProperties.getValue("line_item_amount", "100", customFields));
-        lineItem.put("currency", PluginProperties.getValue("line_item_currency", defaultCurrency, customFields));
-        lineItem.put("quantity", PluginProperties.getValue("line_item_quantity", "1", customFields));
-        lineItems.add(lineItem);
-        params.put("line_items", lineItems);
+        final List<String> defaultPaymentMethodTypes = new ArrayList<String>();
+        defaultPaymentMethodTypes.add("card");
+        final PluginProperty customPaymentMethods = StreamSupport.stream(customFields.spliterator(), false)
+                     .filter(entry -> "payment_method_types".equals(entry.getKey()))
+                     .findFirst().orElse(null);
+        params.put("payment_method_types", customPaymentMethods != null && customPaymentMethods.getValue() != null ? customPaymentMethods.getValue() : defaultPaymentMethodTypes);
 
-        final HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
-        // Auth only
-        paymentIntentData.put("capture_method", "manual");
-        params.put("payment_intent_data", paymentIntentData);
-
-        params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success", customFields));
+        params.put("mode", "setup");
+        params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success?sessionId={CHECKOUT_SESSION_ID}", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
-        
+
         try {
             logger.info("Creating Stripe session");
-            final Session session = Session.create(params, buildRequestOptions(context));
+            final Session session = Session.create(params, requestOptions);
 
             dao.addHppRequest(kbAccountId,
                               null,
@@ -733,10 +754,12 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                              public PaymentIntent execute(final Account account, final StripePaymentMethodsRecord paymentMethodsRecord) throws StripeException {
                                                  final RequestOptions requestOptions = buildRequestOptions(context);
 
+                                                 final CaptureMethod captureMethod = transactionType == TransactionType.AUTHORIZE ? CaptureMethod.MANUAL : CaptureMethod.AUTOMATIC;
+
                                                  final Map<String, Object> paymentIntentParams = new HashMap<>();
                                                  paymentIntentParams.put("amount", KillBillMoney.toMinorUnits(currency.toString(), amount));
                                                  paymentIntentParams.put("currency", currency.toString());
-                                                 paymentIntentParams.put("capture_method", transactionType == TransactionType.AUTHORIZE ? "manual" : "automatic");
+                                                 paymentIntentParams.put("capture_method", captureMethod.value);
                                                  // TODO Do we need to switch to manual confirmation to be able to set off_session=recurring?
                                                  paymentIntentParams.put("confirm", true);
                                                  // See https://stripe.com/docs/api/payment_intents/create#create_payment_intent-return_url
@@ -770,6 +793,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
                                                  final ImmutableList.Builder<String> paymentMethodTypesBuilder = ImmutableList.builder();
                                                  paymentMethodTypesBuilder.add("card");
+                                                 if (captureMethod == CaptureMethod.AUTOMATIC && currency == Currency.EUR) {
+                                                     paymentMethodTypesBuilder.add("sepa_debit");
+                                                 }
                                                  if (transactionType == TransactionType.PURCHASE && currency == Currency.USD) {
                                                      // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
                                                      paymentMethodTypesBuilder.add("ach_debit");

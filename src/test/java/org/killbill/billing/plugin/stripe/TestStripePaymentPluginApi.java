@@ -28,6 +28,7 @@ import java.util.UUID;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.joda.time.Period;
 import org.killbill.billing.ObjectType;
+import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.payment.api.Payment;
 import org.killbill.billing.payment.api.PaymentApiException;
 import org.killbill.billing.payment.api.PaymentMethodPlugin;
@@ -57,7 +58,9 @@ import com.stripe.model.BankAccount;
 import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
+import com.stripe.model.PaymentMethod.Card;
 import com.stripe.model.PaymentSource;
+import com.stripe.model.SetupIntent;
 import com.stripe.model.Token;
 import com.stripe.net.RequestOptions;
 
@@ -81,7 +84,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         final Map<String, Object> card = new HashMap<>();
         card.put("number", "4242424242424242");
         card.put("exp_month", 1);
-        card.put("exp_year", 2021);
+        card.put("exp_year", 2030);
         card.put("cvc", "314");
         final Map<String, Object> params = new HashMap<>();
         params.put("card", card);
@@ -133,7 +136,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         final Map<String, Object> card = new HashMap<>();
         card.put("number", "4242424242424242");
         card.put("exp_month", 1);
-        card.put("exp_year", 2021);
+        card.put("exp_year", 2030);
         card.put("cvc", "314");
         final Map<String, Object> params = new HashMap<>();
         params.put("card", card);
@@ -597,8 +600,12 @@ public class TestStripePaymentPluginApi extends TestBase {
     @Test(groups = "integration", enabled = false, description = "Manual test")
     public void testHPP() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
+        final List<String> paymentMethodTypes = new ArrayList<String>();
+        paymentMethodTypes.add("card");
+        paymentMethodTypes.add("sepa_debit");
+        final ImmutableList<PluginProperty> customFields = ImmutableList.of(new PluginProperty("payment_method_types", paymentMethodTypes, false));
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
-                                                                                                                           ImmutableList.of(),
+                                                                                                                           customFields,
                                                                                                                            ImmutableList.of(),
                                                                                                                            context);
         final String sessionId = PluginProperties.findPluginPropertyValue("id", hostedPaymentPageFormDescriptor.getFormFields());
@@ -607,7 +614,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         System.out.println("sessionId: " + sessionId);
         // Set a breakpoint here
         // Modify src/test/resources/index.html to use your Stripe public key ...
-        // ... then open the file in your browser and test with card 4242424242424242
+        // ... then open the file in your browser and test either with card 4242424242424242 or with sepa debit DE89370400440532013000
         System.out.flush();
 
         // Still no payment method
@@ -631,16 +638,19 @@ public class TestStripePaymentPluginApi extends TestBase {
         // Verify refresh is a no-op. This will also verify that the custom field was created
         assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, true, ImmutableList.<PluginProperty>of(), context), paymentMethodsNoRefresh);
 
-        // Verify customer has no payment (voided)
-        final String paymentIntentId = PluginProperties.findPluginPropertyValue("payment_intent_id", hostedPaymentPageFormDescriptor.getFormFields());
-        assertEquals(PaymentIntent.retrieve(paymentIntentId, stripePaymentPluginApi.buildRequestOptions(context)).getStatus(), "canceled");
+        // Verify successful "setup intent"
+        final String setupIntentId = PluginProperties.findPluginPropertyValue("setup_intent_id", hostedPaymentPageFormDescriptor.getFormFields());
+        assertEquals(SetupIntent.retrieve(setupIntentId, stripePaymentPluginApi.buildRequestOptions(context)).getStatus(), "succeeded");
 
-        // Verify we can charge the card
+        // Verify we can charge the payment method
         paymentMethodPlugin = stripePaymentPluginApi.getPaymentMethodDetail(kbAccountId,
                                                                             paymentMethodsNoRefresh.get(0).getPaymentMethodId(),
                                                                             ImmutableList.of(),
                                                                             context);
-        final Payment payment = TestUtils.buildPayment(account.getId(), account.getPaymentMethodId(), account.getCurrency(), killbillApi);
+        final PluginProperty pmType = paymentMethodPlugin.getProperties().stream().filter(prop -> "type".equals(prop.getKey())).findFirst().orElse(null);
+        final Boolean isSepaDebit = pmType != null && "sepa_debit".equals(pmType.getValue());
+        // sepa debit is only available for EUR so for testing we make sure to use EUR in that case
+        final Payment payment = TestUtils.buildPayment(account.getId(), account.getPaymentMethodId(), isSepaDebit ? Currency.EUR : account.getCurrency(), killbillApi);
         final PaymentTransaction purchaseTransaction = TestUtils.buildPaymentTransaction(payment, TransactionType.AUTHORIZE, BigDecimal.TEN, payment.getCurrency());
         final PaymentTransactionInfoPlugin purchaseInfoPlugin = stripePaymentPluginApi.purchasePayment(account.getId(),
                                                                                                        payment.getId(),
@@ -650,8 +660,11 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                        purchaseTransaction.getCurrency(),
                                                                                                        ImmutableList.of(),
                                                                                                        context);
+        // sepa debit transactions will be returned as "PENDING" (i.e. status='processing') by Stripe instead of "PROCESSED" (i.e. status='succeeded')
+        final PaymentPluginStatus targetStatus = isSepaDebit ? PaymentPluginStatus.PENDING : PaymentPluginStatus.PROCESSED;
+
         TestUtils.updatePaymentTransaction(purchaseTransaction, purchaseInfoPlugin);
-        verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, PaymentPluginStatus.PROCESSED);
+        verifyPaymentTransactionInfoPlugin(payment, purchaseTransaction, purchaseInfoPlugin, targetStatus);
     }
 
     private void verifyPaymentTransactionInfoPlugin(final Payment payment,
@@ -704,7 +717,7 @@ public class TestStripePaymentPluginApi extends TestBase {
     }
 
     private Customer createStripeCustomerWithCreditCard(final UUID kbAccountId) throws StripeException {
-        // Create new customer with VISA card
+        // Create new customer with VISA card, see: https://stripe.com/docs/testing
         Map<String, Object> customerParams = new HashMap<String, Object>();
         customerParams.put("payment_method", "pm_card_visa");
         final Customer customer = Customer.create(customerParams, stripePaymentPluginApi.buildRequestOptions(context));
@@ -736,7 +749,7 @@ public class TestStripePaymentPluginApi extends TestBase {
     }
 
     private Customer createStripeCustomerWith3DSCreditCard(final UUID kbAccountId) throws StripeException {
-        // Create new customer with VISA card
+        // Create new customer with VISA card, see: https://stripe.com/docs/testing
         Map<String, Object> customerParams = new HashMap<String, Object>();
         customerParams.put("payment_method", "pm_card_threeDSecure2Required");
         final Customer customer = Customer.create(customerParams, stripePaymentPluginApi.buildRequestOptions(context));
@@ -780,6 +793,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         // so I reverse-engineered the call that stripe.js makes...
         String bankAccount = null;
         try {
+            // make sure to have your public key included in src/test/resources/stripe.properties (see README.md)
             bankAccount = new StripeJsClient().createBankAccount(stripeConfigPropertiesConfigurationHandler.getConfigurable(super.context.getTenantId()).getPublicKey());
         } catch (Exception e) {
             fail(e.getMessage());

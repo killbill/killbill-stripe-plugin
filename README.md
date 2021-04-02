@@ -81,11 +81,15 @@ curl -v \
      -H "X-Killbill-Comment: demo" \
      "http://127.0.0.1:8080/plugins/killbill-stripe/checkout?kbAccountId=<KB_ACCOUNT_ID>"
 ```
+
+The default is to only allow credit cards. If you want to enable sepa direct debit payments, you need to include the `paymentMethodTypes` option, i.e. change the URL of your POST request
+to `http://127.0.0.1:8080/plugins/killbill-stripe/checkout?kbAccountId=<KB_ACCOUNT_ID>&paymentMethodTypes=card&paymentMethodTypes=sepa_debit`.
+
 3. Redirect the user to the Stripe checkout page. The `sessionId` is returned as part of the `formFields` (`id` key):
 ```javascript
 stripe.redirectToCheckout({ sessionId: 'cs_test_XXX' });
 ```
-4. After entering the credit card, a $1 authorization will be triggered. Call `addPaymentMethod` to create the Stripe payment method and pass the `sessionId` in the plugin properties. This will void the authorization (if successful) and store the payment method in Kill Bill:
+4. After entering the credit card or bank account details, the payment method will be available in Stripe. Call `addPaymentMethod` to store the payment method in Kill Bill:
 ```bash
 curl -v \
      -X POST \
@@ -158,6 +162,15 @@ curl -v \
      -H "X-Killbill-Comment: demo" \
      "http://127.0.0.1:8080/1.0/kb/accounts/<ACCOUNT_ID>/paymentMethods/refresh"
 ```
+## Development
+
+For testing you need to add your Stripe public and private key to `src/test/resources/stripe.properties`:
+
+```
+org.killbill.billing.plugin.stripe.apiKey=sk_test_XXX
+org.killbill.billing.plugin.stripe.publicKey=pk_test_XXX
+```
+
 ## About
 
 Kill Bill is the leading Open-Source Subscription Billing & Payments Platform. For more information about the project, go to https://killbill.io/.

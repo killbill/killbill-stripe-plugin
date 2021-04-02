@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
@@ -68,6 +70,7 @@ public class TestBase {
         Mockito.when(context.getTenantId()).thenReturn(UUID.randomUUID());
 
         account = TestUtils.buildAccount(DEFAULT_CURRENCY, DEFAULT_COUNTRY);
+        Mockito.when(account.getEmail()).thenReturn(UUID.randomUUID().toString() + "@example.com");
         killbillApi = TestUtils.buildOSGIKillbillAPI(account);
         customFieldUserApi = Mockito.mock(CustomFieldUserApi.class);
         Mockito.when(killbillApi.getCustomFieldUserApi()).thenReturn(customFieldUserApi);

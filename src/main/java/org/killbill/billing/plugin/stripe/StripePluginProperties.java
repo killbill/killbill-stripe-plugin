@@ -28,6 +28,8 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentMethod.Card;
 import com.stripe.model.PaymentSource;
+import com.stripe.model.SetupIntent;
+import com.stripe.model.SetupIntent.PaymentMethodOptions;
 import com.stripe.model.Source;
 import com.stripe.model.Source.AchDebit;
 import com.stripe.model.Token;
@@ -77,6 +79,16 @@ public abstract class StripePluginProperties {
                 additionalDataMap.put("ach_debit_last4", achDebit.getLast4());
                 additionalDataMap.put("ach_debit_routing_number", achDebit.getRoutingNumber());
                 additionalDataMap.put("ach_debit_type", achDebit.getType());
+            }
+            final Source.SepaDebit sepaDebit = stripeSource.getSepaDebit();
+            if (sepaDebit != null) {
+                additionalDataMap.put("sepa_debit_bank_code", sepaDebit.getBankCode());
+                additionalDataMap.put("sepa_debit_branch_code", sepaDebit.getBranchCode());
+                additionalDataMap.put("sepa_debit_country", sepaDebit.getCountry());
+                additionalDataMap.put("sepa_debit_fingerprint", sepaDebit.getFingerprint());
+                additionalDataMap.put("sepa_debit_last4", sepaDebit.getLast4());
+                additionalDataMap.put("sepa_debit_mandate_reference", sepaDebit.getMandateReference());
+                additionalDataMap.put("sepa_debit_mandate_url", sepaDebit.getMandateUrl());
             }
             additionalDataMap.put("created", stripeSource.getCreated());
             additionalDataMap.put("customer_id", stripeSource.getCustomer());
@@ -143,6 +155,15 @@ public abstract class StripePluginProperties {
                 additionalDataMap.put("card_wallet_type", card.getWallet().getType());
             }
         }
+        final PaymentMethod.SepaDebit sepaDebit = stripePaymentMethod.getSepaDebit();
+        if (sepaDebit != null) {
+            additionalDataMap.put("sepa_debit_bank_code", sepaDebit.getBankCode());
+            additionalDataMap.put("sepa_debit_branch_code", sepaDebit.getBranchCode());
+            additionalDataMap.put("sepa_debit_country", sepaDebit.getCountry());
+            additionalDataMap.put("sepa_debit_fingerprint", sepaDebit.getFingerprint());
+            additionalDataMap.put("sepa_debit_last4", sepaDebit.getLast4());
+        }
+
         additionalDataMap.put("created", stripePaymentMethod.getCreated());
         additionalDataMap.put("customer_id", stripePaymentMethod.getCustomer());
         additionalDataMap.put("id", stripePaymentMethod.getId());
@@ -218,6 +239,41 @@ public abstract class StripePluginProperties {
         return additionalDataMap;
     }
 
+    public static Map<String, Object> toAdditionalDataMap(final SetupIntent stripeSetupIntent) {
+        final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
+
+        additionalDataMap.put("application", stripeSetupIntent.getApplication());
+        additionalDataMap.put("cancellation_reason", stripeSetupIntent.getCancellationReason());
+        additionalDataMap.put("created", stripeSetupIntent.getCreated());
+        additionalDataMap.put("customer_id", stripeSetupIntent.getCustomer());
+        additionalDataMap.put("description", stripeSetupIntent.getDescription());
+        additionalDataMap.put("id", stripeSetupIntent.getId());
+        additionalDataMap.put("last_setup_error", stripeSetupIntent.getLastSetupError());
+        additionalDataMap.put("latest_attempt", stripeSetupIntent.getLatestAttempt());
+        additionalDataMap.put("livemode", stripeSetupIntent.getLivemode());
+        additionalDataMap.put("mandate", stripeSetupIntent.getMandate());
+        additionalDataMap.put("metadata", stripeSetupIntent.getMetadata());
+        additionalDataMap.put("next_action", stripeSetupIntent.getNextAction());
+        additionalDataMap.put("object", stripeSetupIntent.getObject());
+        additionalDataMap.put("on_behalf_of", stripeSetupIntent.getOnBehalfOf());
+        additionalDataMap.put("payment_method_id", stripeSetupIntent.getPaymentMethod());
+        final PaymentMethodOptions paymentMethodOptions = stripeSetupIntent.getPaymentMethodOptions();
+        if (paymentMethodOptions != null ) {
+            final SetupIntent.PaymentMethodOptions.Card card = paymentMethodOptions.getCard();
+            if (card != null) {
+                additionalDataMap.put("payment_method_options_card_request_three_d_secure", card.getRequestThreeDSecure());
+            }
+            // paymentMethodOptions also contains "sepa_debit" which contains "mandate_options" that currently has
+            // no properties, so it is ignored here (https://stripe.com/docs/api/setup_intents/object)
+        }
+        additionalDataMap.put("payment_method_types", stripeSetupIntent.getPaymentMethodTypes());
+        additionalDataMap.put("single_use_mandate_id", stripeSetupIntent.getSingleUseMandate());
+        additionalDataMap.put("status", stripeSetupIntent.getStatus());
+        additionalDataMap.put("usage", stripeSetupIntent.getUsage());
+
+        return additionalDataMap;
+    }
+
     public static Map<String, Object> toAdditionalDataMap(final Session session, @Nullable final String pk) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
@@ -232,6 +288,7 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("object", session.getObject());
         additionalDataMap.put("payment_intent_id", session.getPaymentIntent());
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
+        additionalDataMap.put("setup_intent_id", session.getSetupIntent());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
         if (pk != null) {
