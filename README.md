@@ -17,8 +17,12 @@ A full end-to-end integration demo is available [here](https://github.com/killbi
 | 7.0.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
 | 7.1.y          | 0.22.z             | [2019-12-03](https://stripe.com/docs/upgrades#2019-12-03) |
 | 7.2.y          | 0.22.z             | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
+| 7.3.y          | 0.22.z             | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
 
-We've upgraded numerous dependencies in 7.1.x (required for Java 11 support).
+### Release notes
+
+* Starting with 7.3.0, the Setup Intents API is used to validate and store payment instruments, instead of the Payment Intents API.
+* We've upgraded numerous dependencies in 7.1.x (required for Java 11 support).
 
 ## Requirements
 
