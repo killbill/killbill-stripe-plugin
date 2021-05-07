@@ -701,6 +701,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         params.put("mode", "setup");
         params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success?sessionId={CHECKOUT_SESSION_ID}", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
+        params.put("billing_address_collection", PluginProperties.getValue("billing_address_collection", "auto", customFields));
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
 
         try {
