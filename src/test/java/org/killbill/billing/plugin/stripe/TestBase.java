@@ -1,6 +1,6 @@
 /*
- * Copyright 2020-2020 Equinix, Inc
- * Copyright 2014-2020 The Billing Project, LLC
+ * Copyright 2020-2021 Equinix, Inc
+ * Copyright 2014-2021 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.account.api.Account;
 import org.killbill.billing.catalog.api.Currency;
@@ -123,7 +121,14 @@ public class TestBase {
 
     @BeforeMethod(groups = "integration")
     public void setUpIntegration() throws Exception {
-        final Properties properties = TestUtils.loadProperties(PROPERTIES_FILE_NAME);
+        Properties properties = new Properties();
+        try {
+            properties = TestUtils.loadProperties(PROPERTIES_FILE_NAME);
+        } catch (final RuntimeException ignored) {
+            // Look up environment variables instead
+            properties.put("org.killbill.billing.plugin.stripe.apiKey", System.getenv("STRIPE_API_KEY"));
+            properties.put("org.killbill.billing.plugin.stripe.publicKey", System.getenv("STRIPE_PUBLIC_KEY"));
+        }
         final StripeConfigProperties stripeConfigProperties = new StripeConfigProperties(properties, "");
         stripeConfigPropertiesConfigurationHandler.setDefaultConfigurable(stripeConfigProperties);
     }
