@@ -931,18 +931,6 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         return stripeCustomerId;
     }
 
-    private String getKbAccountName(final UUID kbAccountId, final CallContext context) {
-        final List<CustomField> customFields = killbillAPI.getAccount(kbAccountId);
-        String stripeCustomerId = null;
-        for (final CustomField customField : customFields) {
-            if (customField.getFieldName().equals("STRIPE_CUSTOMER_ID")) {
-                stripeCustomerId = customField.getFieldValue();
-                break;
-            }
-        }
-        return stripeCustomerId;
-    }
-
     private StripePaymentMethodsRecord getStripePaymentMethodsRecord(@Nullable final UUID kbPaymentMethodId, final TenantContext context) throws PaymentPluginApiException {
         StripePaymentMethodsRecord paymentMethodsRecord = null;
 
