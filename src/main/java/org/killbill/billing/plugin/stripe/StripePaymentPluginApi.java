@@ -310,8 +310,12 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
                     final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
                     if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
+                        final Map<String, Object> customerMetadata = new HashMap<>();
+                        customerMetadata.put("killbill_id", kbAccountId);
                         final Map<String, Object> customerParams = new HashMap<>();
                         customerParams.put("source", paymentMethodIdInStripe);
+                        customerParams.put("name", killbillAPI.getAccount(kbAccountId).getName());
+                        customerParams.put("metadata", customerMetadata);
                         logger.info("Creating customer in Stripe to be able to re-use the token");
                         final Customer customer = Customer.create(customerParams, requestOptions);
                         // The id to charge now is the default source (e.g. card), not the token
@@ -917,6 +921,18 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
     private String getCustomerIdNoException(final UUID kbAccountId, final CallContext context) {
         final List<CustomField> customFields = killbillAPI.getCustomFieldUserApi().getCustomFieldsForAccountType(kbAccountId, ObjectType.ACCOUNT, context);
+        String stripeCustomerId = null;
+        for (final CustomField customField : customFields) {
+            if (customField.getFieldName().equals("STRIPE_CUSTOMER_ID")) {
+                stripeCustomerId = customField.getFieldValue();
+                break;
+            }
+        }
+        return stripeCustomerId;
+    }
+
+    private String getKbAccountName(final UUID kbAccountId, final CallContext context) {
+        final List<CustomField> customFields = killbillAPI.getAccount(kbAccountId);
         String stripeCustomerId = null;
         for (final CustomField customField : customFields) {
             if (customField.getFieldName().equals("STRIPE_CUSTOMER_ID")) {
