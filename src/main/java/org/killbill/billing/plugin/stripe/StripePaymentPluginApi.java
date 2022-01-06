@@ -310,8 +310,13 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
                     final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
                     if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
+                        final Account account = getAccount(kbAccountId, context);
+
                         final Map<String, Object> customerParams = new HashMap<>();
                         customerParams.put("source", paymentMethodIdInStripe);
+                        customerParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
+                                                                       "kbAccountExternalKey", account.getExternalKey()));
+
                         logger.info("Creating customer in Stripe to be able to re-use the token");
                         final Customer customer = Customer.create(customerParams, requestOptions);
                         // The id to charge now is the default source (e.g. card), not the token
