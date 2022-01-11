@@ -353,9 +353,12 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     }
 
 
-    private String createStripeCustomer(final UUID kbAccountId, final CallContext context, final RequestOptions requestOptions,
-        final Iterable<PluginProperty> allProperties, String paymentMethodIdInStripe, final String defaultStripeId)
-        throws StripeException, PaymentPluginApiException {
+    private String createStripeCustomer(final UUID kbAccountId,
+                                        final String paymentMethodIdInStripe,
+                                        final String defaultStripeId,
+                                        final RequestOptions requestOptions,
+                                        final Iterable<PluginProperty> allProperties,
+                                        final CallContext context) throws StripeException, PaymentPluginApiException {
       final String stripeId;
       final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
       final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
@@ -384,7 +387,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
               throw new PaymentPluginApiException("Unable to add custom field", e);
           }
       } else {
-          // The id to charge is the one-time token
+          // Stripe Customer exists OR creation is disabled: in those cases use the default ID to charge
           stripeId = defaultStripeId;
       }
       return stripeId;
