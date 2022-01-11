@@ -312,7 +312,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
-                    stripeId = createStripeCustomer(kbAccountId, context, requestOptions, allProperties, paymentMethodIdInStripe, stripeToken.getId());
+                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeToken.getId(), requestOptions, allProperties, context);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
@@ -321,7 +321,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     // The Stripe sourceId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
                     final Source stripeSource = Source.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSource);
-                    stripeId = createStripeCustomer(kbAccountId, context, requestOptions, allProperties, paymentMethodIdInStripe, stripeSource.getId());
+                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeSource.getId(), requestOptions, allProperties, context);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
