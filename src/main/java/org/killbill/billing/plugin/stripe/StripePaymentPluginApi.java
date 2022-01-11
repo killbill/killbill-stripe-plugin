@@ -244,10 +244,16 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         String paymentMethodIdInStripe = paymentMethodProps.getExternalPaymentMethodId();
         String objectType = PluginProperties.getValue("object", "payment_method", allProperties);
         if (paymentMethodIdInStripe == null) {
-            // Support also a token plugin property as it is a bit easier to pass it in cURLs (also sent by kbcmd in the body)
-            paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("token", allProperties);
+            // Support also a source plugin property as it is a easier to pass it in cURLs and recommended by Stripe
+            paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("source", allProperties);
             if (paymentMethodIdInStripe != null) {
-                objectType = "token";
+                objectType = "source";
+            } else {
+                // Support also a token plugin property as it is a bit easier to pass it in cURLs (also sent by kbcmd in the body)
+                paymentMethodIdInStripe = PluginProperties.findPluginPropertyValue("token", allProperties);
+                if (paymentMethodIdInStripe != null) {
+                    objectType = "token";
+                }
             } // Otherwise, defaults to payment_method (session flow)
         }
 
@@ -306,37 +312,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
-
-                    final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
-                    final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
-                    if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
-                        final Account account = getAccount(kbAccountId, context);
-
-                        final Map<String, Object> customerParams = new HashMap<>();
-                        customerParams.put("source", paymentMethodIdInStripe);
-                        customerParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
-                                                                       "kbAccountExternalKey", account.getExternalKey()));
-
-                        logger.info("Creating customer in Stripe to be able to re-use the token");
-                        final Customer customer = Customer.create(customerParams, requestOptions);
-                        // The id to charge now is the default source (e.g. card), not the token
-                        stripeId = customer.getDefaultSource();
-                        // Add magic custom field
-                        logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, customer.getId());
-                        final CustomField customField = new PluginCustomField(kbAccountId,
-                                                                              ObjectType.ACCOUNT,
-                                                                              "STRIPE_CUSTOMER_ID",
-                                                                              customer.getId(),
-                                                                              clock.getUTCNow());
-                        try {
-                            killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.<CustomField>of(customField), context);
-                        } catch (final CustomFieldApiException e) {
-                            throw new PaymentPluginApiException("Unable to add custom field", e);
-                        }
-                    } else {
-                        // The id to charge is the one-time token
-                        stripeId = stripeToken.getId();
-                    }
+                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeToken.getId(), requestOptions, allProperties, context);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
@@ -345,7 +321,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     // The Stripe sourceId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
                     final Source stripeSource = Source.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSource);
-                    stripeId = stripeSource.getId();
+                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeSource.getId(), requestOptions, allProperties, context);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
@@ -374,6 +350,47 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         } catch (final SQLException e) {
             throw new PaymentPluginApiException("Unable to add payment method", e);
         }
+    }
+
+
+    private String createStripeCustomer(final UUID kbAccountId,
+                                        final String paymentMethodIdInStripe,
+                                        final String defaultStripeId,
+                                        final RequestOptions requestOptions,
+                                        final Iterable<PluginProperty> allProperties,
+                                        final CallContext context) throws StripeException, PaymentPluginApiException {
+      final String stripeId;
+      final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
+      final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
+      if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
+          final Account account = getAccount(kbAccountId, context);
+
+          final Map<String, Object> customerParams = new HashMap<>();
+          customerParams.put("source", paymentMethodIdInStripe);
+          customerParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
+                                                         "kbAccountExternalKey", account.getExternalKey()));
+
+          logger.info("Creating customer in Stripe to be able to re-use the token");
+          final Customer customer = Customer.create(customerParams, requestOptions);
+          // The id to charge now is the default source (e.g. card), not the token
+          stripeId = customer.getDefaultSource();
+          // Add magic custom field
+          logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, customer.getId());
+          final CustomField customField = new PluginCustomField(kbAccountId,
+                                                                ObjectType.ACCOUNT,
+                                                                "STRIPE_CUSTOMER_ID",
+                                                                customer.getId(),
+                                                                clock.getUTCNow());
+          try {
+              killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.<CustomField>of(customField), context);
+          } catch (final CustomFieldApiException e) {
+              throw new PaymentPluginApiException("Unable to add custom field", e);
+          }
+      } else {
+          // Stripe Customer exists OR creation is disabled: in those cases use the default ID to charge
+          stripeId = defaultStripeId;
+      }
+      return stripeId;
     }
 
     @Override
