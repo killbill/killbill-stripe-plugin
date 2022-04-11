@@ -41,6 +41,8 @@ public class StripeActivator extends KillbillActivatorBase {
 
     private StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
 
+    private MetricsGenerator metricsGenerator;
+
     @Override
     public void start(final BundleContext context) throws Exception {
         super.start(context);
@@ -59,6 +61,10 @@ public class StripeActivator extends KillbillActivatorBase {
         // Expose the healthcheck, so other plugins can check on the Stripe status
         final StripeHealthcheck stripeHealthcheck = new StripeHealthcheck(stripeConfigPropertiesConfigurationHandler);
         registerHealthcheck(context, stripeHealthcheck);
+
+        // Expose metrics (optional)
+        metricsGenerator = new MetricsGenerator(metricRegistry);
+        metricsGenerator.start();
 
         // Register the payment plugin
         Stripe.setAppInfo("Kill Bill", "7.2.0", "https://killbill.io");
@@ -85,6 +91,12 @@ public class StripeActivator extends KillbillActivatorBase {
         registerServlet(context, stripeServlet);
 
         registerHandlers();
+    }
+
+    @Override
+    public void stop(final BundleContext context) throws Exception {
+        metricsGenerator.stop();
+        super.stop(context);
     }
 
     public void registerHandlers() {
