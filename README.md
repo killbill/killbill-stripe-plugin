@@ -56,7 +56,9 @@ curl -v \
      -H 'X-Killbill-ApiSecret: lazar' \
      -H 'X-Killbill-CreatedBy: admin' \
      -H 'Content-Type: text/plain' \
-     -d 'org.killbill.billing.plugin.stripe.apiKey=sk_test_XXX' \
+     -d 'org.killbill.billing.plugin.stripe.apiKey=sk_test_XXX
+org.killbill.billing.plugin.stripe.chargeDescription=YYY
+org.killbill.billing.plugin.stripe.chargeStatementDescriptor=ZZZ' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
