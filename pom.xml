@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.144.58</version>
+        <version>0.145.3-c9eb563-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
@@ -85,13 +85,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <scope>provided</scope>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
@@ -114,8 +114,7 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <!-- 3.14.0 broke returning() on MySQL :( -->
-            <version>3.13.5</version>
+            <version>3.14.15</version>
         </dependency>
         <dependency>
             <groupId>org.kill-bill.billing</groupId>
@@ -172,6 +171,11 @@
             <groupId>org.kill-bill.commons</groupId>
             <artifactId>killbill-embeddeddb-common</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-metrics-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

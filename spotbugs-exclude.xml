@@ -19,4 +19,7 @@
     <Match>
         <Class name="~org\.killbill\.billing\.plugin\.stripe\.dao\.gen.*"/>
     </Match>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
 </FindBugsFilter>
