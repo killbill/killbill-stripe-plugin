@@ -20,11 +20,11 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.144.58</version>
+        <version>0.145.3-db57b15-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
-    <version>7.3.2-SNAPSHOT</version>
+    <version>8.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>Kill Bill Stripe plugin</name>
     <description>Kill Bill Stripe plugin</description>
@@ -44,6 +44,15 @@
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.reactivestreams</groupId>
+                <artifactId>reactive-streams</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -72,7 +81,7 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>20.33.0</version>
+            <version>20.47.1</version>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
@@ -85,13 +94,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <scope>provided</scope>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
@@ -104,10 +113,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.asynchttpclient</groupId>
-            <artifactId>async-http-client</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby</artifactId>
         </dependency>
@@ -116,6 +121,13 @@
             <artifactId>jooq</artifactId>
             <!-- 3.14.0 broke returning() on MySQL :( -->
             <version>3.13.5</version>
+            <exclusions>
+                <exclusion>
+                    <!-- Pulls in 1.8.0-beta4 -->
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.kill-bill.billing</groupId>
@@ -174,6 +186,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-metrics-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
@@ -204,7 +221,7 @@
                         <exception>
                             <groupId>org.jooq</groupId>
                             <artifactId>jooq</artifactId>
-                            <expectedVersion>3.14.13</expectedVersion>
+                            <expectedVersion>3.15.10</expectedVersion>
                             <resolvedVersion>3.13.5</resolvedVersion>
                         </exception>
                     </exceptions>
