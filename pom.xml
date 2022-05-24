@@ -81,7 +81,7 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>20.47.1</version>
+            <version>20.123.0</version>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
