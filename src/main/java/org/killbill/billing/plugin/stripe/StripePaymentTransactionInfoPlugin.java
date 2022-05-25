@@ -108,7 +108,13 @@ public class StripePaymentTransactionInfoPlugin extends PluginPaymentTransaction
     }
 
     private static String getGatewayError(final Map additionalData) {
-        return (String) additionalData.getOrDefault("stripe_error_message", additionalData.get("last_charge_failure_message"));
+        if (additionalData.containsKey("stripe_error_message")) {
+            return (String) additionalData.get("stripe_error_message");
+        } else if (additionalData.containsKey("last_charge_failure_message")) {
+            return (String) additionalData.get("last_charge_failure_message");
+        } else {
+            return (String) additionalData.get("message");
+        }
     }
 
     private static String getGatewayErrorCode(final Map additionalData) {
