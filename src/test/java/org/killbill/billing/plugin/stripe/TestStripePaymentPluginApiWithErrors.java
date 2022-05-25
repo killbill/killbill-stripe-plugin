@@ -48,6 +48,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.serverError;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Checks if the plugin could handle technical communication errors (strange responses, read/connect timeouts etc...) and map them to the correct PaymentPluginStatus.
@@ -85,13 +86,13 @@ public class TestStripePaymentPluginApiWithErrors extends TestBase {
                                                                                            context);
 
         assertEquals(result.getStatus(), PaymentPluginStatus.CANCELED);
-        assertNull(result.getGatewayError());
+        assertTrue(result.getGatewayError().startsWith("IOException during API request to Stripe (http://localhost:"));
         assertNull(result.getGatewayErrorCode());
 
         final List<PaymentTransactionInfoPlugin> results = stripePaymentPluginApi.getPaymentInfo(account.getId(), payment.getId(), ImmutableList.<PluginProperty>of(), context);
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getStatus(), PaymentPluginStatus.CANCELED);
-        assertNull(results.get(0).getGatewayError());
+        assertTrue(results.get(0).getGatewayError().startsWith("IOException during API request to Stripe (http://localhost:"));
         assertNull(results.get(0).getGatewayErrorCode());
     }
 
