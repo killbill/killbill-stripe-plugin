@@ -17,11 +17,20 @@
 
 package org.killbill.billing.plugin.stripe;
 
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
+
+import com.google.common.base.Throwables;
+import com.stripe.exception.StripeException;
 import com.stripe.model.BankAccount;
 import com.stripe.model.Charge;
 import com.stripe.model.PaymentIntent;
@@ -34,6 +43,8 @@ import com.stripe.model.Source;
 import com.stripe.model.Source.AchDebit;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
+
+import static org.killbill.billing.plugin.stripe.StripePaymentPluginApi.PROPERTY_OVERRIDDEN_TRANSACTION_STATUS;
 
 // Stripe .toJson() is definitively not GDPR-friendly...
 public abstract class StripePluginProperties {
@@ -173,6 +184,60 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("type", stripePaymentMethod.getType());
 
         return additionalDataMap;
+    }
+
+    public static Map<String, Object> toAdditionalDataMap(final StripeException stripeException) {
+        final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
+
+        if (stripeException.getStripeError() != null) {
+            // See StripePaymentTransactionInfoPlugin#getGatewayError
+            additionalDataMap.put("stripe_error_message", stripeException.getStripeError().getMessage());
+            // See StripePaymentTransactionInfoPlugin#getGatewayErrorCode
+            additionalDataMap.put("stripe_error_code", stripeException.getStripeError().getCode());
+        }
+        additionalDataMap.put("code", stripeException.getCode());
+        additionalDataMap.put("request_id", stripeException.getRequestId());
+        additionalDataMap.put("status_code", stripeException.getStatusCode());
+        additionalDataMap.put("message", stripeException.getMessage());
+
+        additionalDataMap.put(PROPERTY_OVERRIDDEN_TRANSACTION_STATUS, mapExceptionToCallResult(stripeException).toString());
+
+        return additionalDataMap;
+    }
+
+
+    /**
+     * Educated guess approach to transform exceptions into error status codes.
+     */
+    private static PaymentPluginStatus mapExceptionToCallResult(final Exception e) {
+        //noinspection ThrowableResultOfMethodCallIgnored
+        final Throwable rootCause = Throwables.getRootCause(e);
+        final String errorMessage = rootCause.getMessage();
+        if (rootCause instanceof ConnectException) {
+            return PaymentPluginStatus.CANCELED;
+        } else if (rootCause instanceof SocketTimeoutException) {
+            // read timeout
+            if (errorMessage.contains("Read timed out")) {
+                return PaymentPluginStatus.UNDEFINED;
+            } else if (errorMessage.contains("Unexpected end of file from server")) {
+                return PaymentPluginStatus.UNDEFINED;
+            }
+        } else if (rootCause instanceof SocketException) {
+            if (errorMessage.contains("Unexpected end of file from server")) {
+                return PaymentPluginStatus.UNDEFINED;
+            }
+        } else if (rootCause instanceof UnknownHostException) {
+            return PaymentPluginStatus.CANCELED;
+        } else if (rootCause instanceof IOException) {
+            if (errorMessage.contains("Invalid Http response")) {
+                // unparsable data as response
+                return PaymentPluginStatus.UNDEFINED;
+            } else if (errorMessage.contains("Bogus chunk size")) {
+                return PaymentPluginStatus.UNDEFINED;
+            }
+        }
+
+        return PaymentPluginStatus.UNDEFINED;
     }
 
     public static Map<String, Object> toAdditionalDataMap(final PaymentIntent stripePaymentIntent) {

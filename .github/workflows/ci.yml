@@ -11,3 +11,12 @@ jobs:
       test-profile-matrix: '[ "travis", "integration-mysql", "integration-postgresql" ]'
     secrets:
       extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
+
+  integration_test:
+    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@integration-tests
+    with:
+      plugin_name: 'stripe'
+      integration_tests_goal: 'ci:stripe'
+      integration_tests_ref: 'refs/heads/integration-tests'
+    secrets:
+      extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'

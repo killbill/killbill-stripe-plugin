@@ -72,6 +72,7 @@ import com.google.common.collect.ImmutableMap;
 import com.stripe.exception.CardException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
+import com.stripe.model.ChargeSearchResult;
 import com.stripe.model.Customer;
 import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
@@ -84,6 +85,7 @@ import com.stripe.model.Source;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.ChargeSearchParams;
 import com.stripe.param.PaymentIntentCancelParams;
 
 public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeResponsesRecord, StripeResponses, StripePaymentMethodsRecord, StripePaymentMethods> {
@@ -188,6 +190,38 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     }
                     dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
                     wasRefreshed = true;
+                } catch (final StripeException e) {
+                    logger.warn("Unable to fetch latest payment state in Stripe, data might be stale", e);
+                } catch (final SQLException e) {
+                    throw new PaymentPluginApiException("Unable to refresh payment", e);
+                }
+            } else if (transaction.getStatus() == PaymentPluginStatus.UNDEFINED) {
+                final ChargeSearchParams searchParams = ChargeSearchParams.builder().setQuery("metadata['kbTransactionId']:'" + transaction.getKbTransactionPaymentId() + "'").build();
+                try {
+                    final ChargeSearchResult result = Charge.search(searchParams, requestOptions);
+                    if (result.getData().size() == 1) {
+                        final Charge charge = result.getData().get(0);
+                        if (charge.getPaymentIntent() != null) {
+                            final PaymentIntent intent = PaymentIntent.retrieve(charge.getPaymentIntent(), requestOptions);
+                            logger.info("Fixing Stripe transaction {}", intent.getId());
+                            dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
+                            wasRefreshed = true;
+                        }
+                    } else if (result.getData().isEmpty()) {
+                        logger.info("Canceling UNKNOWN Stripe transaction for kbTransactionId={}", transaction.getKbTransactionPaymentId());
+                        final Map<String, Object> additionalMetadata = ImmutableMap.<String, Object>builder()
+                                                                                   .put(PROPERTY_OVERRIDDEN_TRANSACTION_STATUS,
+                                                                                        PaymentPluginStatus.CANCELED.toString())
+                                                                                   .put("message",
+                                                                                        "Payment didn't happen - Cancelled by Janitor")
+                                                                                   .build();
+                        try {
+                            dao.updateResponse(transaction.getKbTransactionPaymentId(), additionalMetadata, context.getTenantId());
+                            wasRefreshed = true;
+                        } catch (final SQLException e) {
+                            throw new PaymentPluginApiException("Unable to update expired payment", e);
+                        }
+                    } // Anything else, manual checks needed
                 } catch (final StripeException e) {
                     logger.warn("Unable to fetch latest payment state in Stripe, data might be stale", e);
                 } catch (final SQLException e) {
@@ -669,11 +703,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     @VisibleForTesting
     RequestOptions buildRequestOptions(final TenantContext context) {
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
-        return RequestOptions.builder()
-                             .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
-                             .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
-                             .setApiKey(stripeConfigProperties.getApiKey())
-                             .build();
+        return stripeConfigProperties.toRequestOptions();
     }
 
     @Override
@@ -796,7 +826,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                  }
                                                  paymentIntentParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
                                                                                                      "kbPaymentId", kbPaymentId,
-                                                                                                     "kbTransactionId", kbTransactionId,
+                                                                                                     "kbTransactionId", kbTransactionId, // Used by the Janitor below
                                                                                                      "kbPaymentMethodId", kbPaymentMethodId));
 
                                                  final Map additionalData = StripeDao.fromAdditionalData(paymentMethodsRecord.getAdditionalData());
@@ -856,7 +886,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentMethodsRecord nonNullPaymentMethodsRecord = getStripePaymentMethodsRecord(kbPaymentMethodId, context);
         final DateTime utcNow = clock.getUTCNow();
 
-        PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
@@ -870,18 +901,20 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
                     response = paymentIntent;
                 } catch (final StripeException e2) {
-                    throw new PaymentPluginApiException("Error getting card error details from Stripe", e2);
+                    logger.warn("Error connecting to Stripe", e2);
+                    stripeException = e2;
                 }
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                logger.warn("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response.toString(), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 
@@ -910,22 +943,24 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         final DateTime utcNow = clock.getUTCNow();
 
-        final PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
             try {
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord, previousResponse);
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                logger.warn("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + (response.toString()), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 

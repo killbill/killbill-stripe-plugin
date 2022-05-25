@@ -16,6 +16,10 @@
  */
 package org.killbill.billing.plugin.stripe;
 
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.Proxy.Type;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,16 +27,28 @@ import java.util.Map.Entry;
 import java.util.Properties;
 
 import javax.annotation.Nullable;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 
 import org.joda.time.Period;
+import org.killbill.billing.plugin.util.http.SslUtils;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
+import com.stripe.Stripe;
+import com.stripe.net.RequestOptions;
+import com.stripe.net.RequestOptions.RequestOptionsBuilder;
 
 public class StripeConfigProperties {
 
     private static final String PROPERTY_PREFIX = "org.killbill.billing.plugin.stripe.";
+
+    private static final SSLSocketFactory DEFAULT_SSL_SOCKET_FACTORY = HttpsURLConnection.getDefaultSSLSocketFactory();
+    private static final HostnameVerifier DEFAULT_HOSTNAME_VERIFIER = HttpsURLConnection.getDefaultHostnameVerifier();
+    private static final String DEFAULT_API_BASE = Stripe.getApiBase();
 
     public static final String DEFAULT_PENDING_PAYMENT_EXPIRATION_PERIOD = "P3d";
     public static final String DEFAULT_PENDING_3DS_PAYMENT_EXPIRATION_PERIOD = "PT3h";
@@ -46,6 +62,9 @@ public class StripeConfigProperties {
     private final String region;
     private final String apiKey;
     private final String publicKey;
+    private final String apiBase;
+    private final String proxyHost;
+    private final int proxyPort;
     private final String connectionTimeout;
     private final String readTimeout;
     private final Period pendingPaymentExpirationPeriod;
@@ -60,6 +79,9 @@ public class StripeConfigProperties {
         this.region = region;
         this.apiKey = properties.getProperty(PROPERTY_PREFIX + "apiKey");
         this.publicKey = properties.getProperty(PROPERTY_PREFIX + "publicKey");
+        this.apiBase = properties.getProperty(PROPERTY_PREFIX + "apiBase");
+        this.proxyHost = properties.getProperty(PROPERTY_PREFIX + "proxyHost");
+        this.proxyPort = Integer.parseInt(properties.getProperty(PROPERTY_PREFIX + "proxyPort", "-1"));
         this.connectionTimeout = properties.getProperty(PROPERTY_PREFIX + "connectionTimeout", DEFAULT_CONNECTION_TIMEOUT);
         this.readTimeout = properties.getProperty(PROPERTY_PREFIX + "readTimeout", DEFAULT_READ_TIMEOUT);
         this.pendingPaymentExpirationPeriod = readPendingExpirationProperty(properties);
@@ -76,6 +98,18 @@ public class StripeConfigProperties {
 
     public String getPublicKey() {
         return publicKey;
+    }
+
+    public String getApiBase() {
+        return apiBase;
+    }
+
+    public String getProxyHost() {
+        return proxyHost;
+    }
+
+    public int getProxyPort() {
+        return proxyPort;
     }
 
     public String getConnectionTimeout() {
@@ -112,6 +146,35 @@ public class StripeConfigProperties {
 
     public Period getPendingHppPaymentWithoutCompletionExpirationPeriod() {
         return pendingHppPaymentWithoutCompletionExpirationPeriod;
+    }
+
+    public RequestOptions toRequestOptions() {
+        if (getApiBase() != null) {
+            Stripe.overrideApiBase(getApiBase());
+
+            // Since this is for testing only, disable certificates verification
+            try {
+                final SSLContext sc = SslUtils.getInstance().getSSLContext(true);
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+                HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+            } catch (final GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            // Allow to switch back and forth (useful for tests)
+            Stripe.overrideApiBase(DEFAULT_API_BASE);
+            HttpsURLConnection.setDefaultSSLSocketFactory(DEFAULT_SSL_SOCKET_FACTORY);
+            HttpsURLConnection.setDefaultHostnameVerifier(DEFAULT_HOSTNAME_VERIFIER);
+        }
+
+        final RequestOptionsBuilder requestOptionsBuilder = RequestOptions.builder()
+                                                                          .setConnectTimeout(Integer.parseInt(getConnectionTimeout()))
+                                                                          .setReadTimeout(Integer.parseInt(getReadTimeout()))
+                                                                          .setApiKey(getApiKey());
+        if (getProxyHost() != null && getProxyPort() != -1) {
+            requestOptionsBuilder.setConnectionProxy(new Proxy(Type.HTTP, new InetSocketAddress(getProxyHost(), getProxyPort())));
+        }
+        return requestOptionsBuilder.build();
     }
 
     private Period readPendingExpirationProperty(final Properties properties) {
