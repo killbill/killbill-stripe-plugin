@@ -39,3 +39,6 @@ services:
     image: killbill/postgresql:0.23
     environment:
       - POSTGRES_PASSWORD=postgres
+  toxiproxy:
+    network_mode: host
+    image: ghcr.io/shopify/toxiproxy

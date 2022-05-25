@@ -39,3 +39,6 @@ services:
     image: killbill/mariadb:0.23
     environment:
       - MYSQL_ROOT_PASSWORD=root
+  toxiproxy:
+    network_mode: host
+    image: ghcr.io/shopify/toxiproxy
