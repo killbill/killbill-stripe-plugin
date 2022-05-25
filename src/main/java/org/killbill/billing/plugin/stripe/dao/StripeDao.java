@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +45,8 @@ import org.killbill.billing.plugin.stripe.dao.gen.tables.StripeResponses;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeHppRequestsRecord;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripePaymentMethodsRecord;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeResponsesRecord;
+
+import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
 
@@ -180,10 +183,18 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                              final TransactionType transactionType,
                                              final BigDecimal amount,
                                              final Currency currency,
-                                             final PaymentIntent stripePaymentIntent,
+                                             @Nullable final PaymentIntent stripePaymentIntent,
+                                             @Nullable final StripeException stripeException,
                                              final DateTime utcNow,
                                              final UUID kbTenantId) throws SQLException {
-        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent);
+        final Map<String, Object> additionalDataMap;
+        if (stripePaymentIntent != null) {
+            additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent);
+        } else if (stripeException != null) {
+            additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeException);
+        } else {
+            additionalDataMap = Collections.emptyMap();
+        }
 
         return execute(dataSource.getConnection(),
                        new WithConnectionCallback<StripeResponsesRecord>() {
@@ -207,7 +218,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                                  transactionType.toString(),
                                                  amount,
                                                  currency == null ? null : currency.name(),
-                                                 stripePaymentIntent.getId(),
+                                                 stripePaymentIntent == null ? null : stripePaymentIntent.getId(),
                                                  asString(additionalDataMap),
                                                  toLocalDateTime(utcNow),
                                                  kbTenantId.toString())

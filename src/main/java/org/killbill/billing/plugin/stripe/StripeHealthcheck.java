@@ -59,11 +59,7 @@ public class StripeHealthcheck implements Healthcheck {
     }
 
     private HealthStatus pingStripe(final StripeConfigProperties stripeConfigProperties) {
-        final RequestOptions requestOptions = RequestOptions.builder()
-                                                            .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
-                                                            .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
-                                                            .setApiKey(stripeConfigProperties.getApiKey())
-                                                            .build();
+        final RequestOptions requestOptions = stripeConfigProperties.toRequestOptions();
 
         // Found this endpoint by cURLing random urls - let's hope it's stable :-)
         final String url = String.format("%s%s", Stripe.getApiBase(), "/healthcheck");
@@ -86,6 +82,7 @@ public class StripeHealthcheck implements Healthcheck {
             return HealthStatus.unHealthy("Stripe error: " + e.getMessage());
         }
     }
+
 
     public static class StripeHealthcheckResponse extends HashMap<String, Object> implements StripeObjectInterface {
 

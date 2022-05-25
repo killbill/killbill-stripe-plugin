@@ -669,11 +669,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     @VisibleForTesting
     RequestOptions buildRequestOptions(final TenantContext context) {
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
-        return RequestOptions.builder()
-                             .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
-                             .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
-                             .setApiKey(stripeConfigProperties.getApiKey())
-                             .build();
+        return stripeConfigProperties.toRequestOptions();
     }
 
     @Override
@@ -856,7 +852,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentMethodsRecord nonNullPaymentMethodsRecord = getStripePaymentMethodsRecord(kbPaymentMethodId, context);
         final DateTime utcNow = clock.getUTCNow();
 
-        PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
@@ -870,18 +867,18 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
                     response = paymentIntent;
                 } catch (final StripeException e2) {
-                    throw new PaymentPluginApiException("Error getting card error details from Stripe", e2);
+                    stripeException = e2;
                 }
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response.toString(), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 
@@ -910,22 +907,23 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         final DateTime utcNow = clock.getUTCNow();
 
-        final PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
             try {
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord, previousResponse);
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + (response.toString()), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 

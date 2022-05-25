@@ -40,7 +40,7 @@ create table stripe_responses (
 , transaction_type varchar(32) not null
 , amount numeric(15,9)
 , currency char(3)
-, stripe_id varchar(255) not null
+, stripe_id varchar(255) default null
 , additional_data longtext default null
 , created_date datetime not null
 , kb_tenant_id char(36) not null
