@@ -13,7 +13,7 @@ jobs:
       extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
 
   integration_test:
-    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@integration-tests
+    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@main
     with:
       plugin_name: 'stripe'
       integration_tests_goal: 'ci:stripe'
