@@ -17,6 +17,6 @@ jobs:
     with:
       plugin_name: 'stripe'
       integration_tests_goal: 'ci:stripe'
-      integration_tests_ref: 'refs/heads/integration-tests'
+      integration_tests_ref: 'refs/heads/work-for-release-0.23.x'
     secrets:
       extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
