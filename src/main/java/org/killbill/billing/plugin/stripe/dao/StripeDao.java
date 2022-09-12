@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import org.joda.time.DateTime;
+import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.payment.api.PluginProperty;
@@ -38,7 +39,7 @@ import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.dao.payment.PluginPaymentDao;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.google.common.collect.ImmutableMap;
+
 import org.killbill.billing.plugin.stripe.StripePluginProperties;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripePaymentMethods;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripeResponses;
@@ -197,35 +198,34 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
         }
 
         return execute(dataSource.getConnection(),
-                       new WithConnectionCallback<StripeResponsesRecord>() {
-                           @Override
-                           public StripeResponsesRecord withConnection(final Connection conn) throws SQLException {
-                               return DSL.using(conn, dialect, settings)
-                                         .insertInto(STRIPE_RESPONSES,
-                                                     STRIPE_RESPONSES.KB_ACCOUNT_ID,
-                                                     STRIPE_RESPONSES.KB_PAYMENT_ID,
-                                                     STRIPE_RESPONSES.KB_PAYMENT_TRANSACTION_ID,
-                                                     STRIPE_RESPONSES.TRANSACTION_TYPE,
-                                                     STRIPE_RESPONSES.AMOUNT,
-                                                     STRIPE_RESPONSES.CURRENCY,
-                                                     STRIPE_RESPONSES.STRIPE_ID,
-                                                     STRIPE_RESPONSES.ADDITIONAL_DATA,
-                                                     STRIPE_RESPONSES.CREATED_DATE,
-                                                     STRIPE_RESPONSES.KB_TENANT_ID)
-                                         .values(kbAccountId.toString(),
-                                                 kbPaymentId.toString(),
-                                                 kbPaymentTransactionId.toString(),
-                                                 transactionType.toString(),
-                                                 amount,
-                                                 currency == null ? null : currency.name(),
-                                                 stripePaymentIntent == null ? null : stripePaymentIntent.getId(),
-                                                 asString(additionalDataMap),
-                                                 toLocalDateTime(utcNow),
-                                                 kbTenantId.toString())
-                                         .returning()
-                                         .fetchOne();
-                           }
-                       });
+                       conn -> DSL.using(conn, dialect, settings).transactionResult(configuration -> {
+                           final DSLContext dslContext = DSL.using(configuration);
+                           dslContext.insertInto(STRIPE_RESPONSES,
+                                                 STRIPE_RESPONSES.KB_ACCOUNT_ID,
+                                                 STRIPE_RESPONSES.KB_PAYMENT_ID,
+                                                 STRIPE_RESPONSES.KB_PAYMENT_TRANSACTION_ID,
+                                                 STRIPE_RESPONSES.TRANSACTION_TYPE,
+                                                 STRIPE_RESPONSES.AMOUNT,
+                                                 STRIPE_RESPONSES.CURRENCY,
+                                                 STRIPE_RESPONSES.STRIPE_ID,
+                                                 STRIPE_RESPONSES.ADDITIONAL_DATA,
+                                                 STRIPE_RESPONSES.CREATED_DATE,
+                                                 STRIPE_RESPONSES.KB_TENANT_ID)
+                              .values(kbAccountId.toString(),
+                                      kbPaymentId.toString(),
+                                      kbPaymentTransactionId.toString(),
+                                      transactionType.toString(),
+                                      amount,
+                                      currency == null ? null : currency.name(),
+                                      stripePaymentIntent == null ? null : stripePaymentIntent.getId(),
+                                      asString(additionalDataMap),
+                                      toLocalDateTime(utcNow),
+                                      kbTenantId.toString())
+                              .execute();
+                           return dslContext.fetchOne(
+                                   STRIPE_RESPONSES,
+                                   STRIPE_RESPONSES.RECORD_ID.eq(STRIPE_RESPONSES.RECORD_ID.getDataType().convert(dslContext.lastID())));
+                       }));
     }
 
     public StripeResponsesRecord updateResponse(final UUID kbPaymentTransactionId,
@@ -316,7 +316,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
 
     public static Map fromAdditionalData(@Nullable final String additionalData) {
         if (additionalData == null) {
-            return ImmutableMap.of();
+            return Collections.emptyMap();
         }
 
         try {
