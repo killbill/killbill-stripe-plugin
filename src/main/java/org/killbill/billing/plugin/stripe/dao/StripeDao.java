@@ -30,7 +30,9 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import org.joda.time.DateTime;
+import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
+import org.jooq.types.ULong;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.payment.api.PluginProperty;
 import org.killbill.billing.payment.api.TransactionType;
@@ -38,7 +40,7 @@ import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.dao.payment.PluginPaymentDao;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.google.common.collect.ImmutableMap;
+
 import org.killbill.billing.plugin.stripe.StripePluginProperties;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripePaymentMethods;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripeResponses;
@@ -200,8 +202,8 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                        new WithConnectionCallback<StripeResponsesRecord>() {
                            @Override
                            public StripeResponsesRecord withConnection(final Connection conn) throws SQLException {
-                               return DSL.using(conn, dialect, settings)
-                                         .insertInto(STRIPE_RESPONSES,
+                               final DSLContext dslContext = DSL.using(conn, dialect, settings);
+                               dslContext.insertInto(STRIPE_RESPONSES,
                                                      STRIPE_RESPONSES.KB_ACCOUNT_ID,
                                                      STRIPE_RESPONSES.KB_PAYMENT_ID,
                                                      STRIPE_RESPONSES.KB_PAYMENT_TRANSACTION_ID,
@@ -222,8 +224,9 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                                  asString(additionalDataMap),
                                                  toLocalDateTime(utcNow),
                                                  kbTenantId.toString())
-                                         .returning()
-                                         .fetchOne();
+                                         .execute();
+                               final long lastId = dslContext.lastID().longValue();
+                               return dslContext.fetchOne(STRIPE_RESPONSES, STRIPE_RESPONSES.RECORD_ID.eq(ULong.valueOf(lastId)));
                            }
                        });
     }
@@ -316,7 +319,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
 
     public static Map fromAdditionalData(@Nullable final String additionalData) {
         if (additionalData == null) {
-            return ImmutableMap.of();
+            return Collections.emptyMap();
         }
 
         try {
