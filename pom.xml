@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.145.3-db57b15-SNAPSHOT</version>
+        <version>0.145.3-903a081-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
@@ -133,7 +133,7 @@
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
             <!-- 3.14.0 broke returning() on MySQL :( -->
-            <version>3.13.5</version>
+            <version>3.15.12</version>
             <exclusions>
                 <exclusion>
                     <!-- Pulls in 1.8.0-beta4 -->
