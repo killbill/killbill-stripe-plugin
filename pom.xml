@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.145.3-db57b15-SNAPSHOT</version>
+        <version>0.145.3-016b634-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
@@ -44,6 +44,7 @@
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
         <!-- This is just for wiremock -->
         <jetty.version>9.4.46.v20220331</jetty.version>
+        <killbill-base-plugin.version>5.0.0-d351c34-SNAPSHOT</killbill-base-plugin.version>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
     </properties>
     <dependencyManagement>
@@ -132,8 +133,6 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <!-- 3.14.0 broke returning() on MySQL :( -->
-            <version>3.13.5</version>
             <exclusions>
                 <exclusion>
                     <!-- Pulls in 1.8.0-beta4 -->
