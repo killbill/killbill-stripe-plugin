@@ -240,7 +240,7 @@ public abstract class StripePluginProperties {
         return PaymentPluginStatus.UNDEFINED;
     }
 
-    public static Map<String, Object> toAdditionalDataMap(final PaymentIntent stripePaymentIntent) {
+    public static Map<String, Object> toAdditionalDataMap(final PaymentIntent stripePaymentIntent, @Nullable final Charge lastCharge) {
         final Map<String, Object> additionalDataMap = new HashMap<String, Object>();
 
         additionalDataMap.put("amount", stripePaymentIntent.getAmount());
@@ -251,36 +251,6 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("canceled_at", stripePaymentIntent.getCanceledAt());
         additionalDataMap.put("cancellation_reason", stripePaymentIntent.getCancellationReason());
         additionalDataMap.put("capture_method", stripePaymentIntent.getCaptureMethod());
-        if (stripePaymentIntent.getCharges() != null) {
-            Charge lastCharge = null;
-            for (final Charge charge : stripePaymentIntent.getCharges().autoPagingIterable()) {
-                if (lastCharge == null || lastCharge.getCreated() < charge.getCreated()) {
-                    lastCharge = charge;
-                }
-            }
-            if (lastCharge != null) {
-                // Keep the state for the last charge (maps to our payment transaction)
-                additionalDataMap.put("last_charge_amount", lastCharge.getAmount());
-                additionalDataMap.put("last_charge_authorization_code", lastCharge.getAuthorizationCode());
-                additionalDataMap.put("last_charge_balance_transaction_id", lastCharge.getBalanceTransaction());
-                additionalDataMap.put("last_charge_created", lastCharge.getCreated());
-                additionalDataMap.put("last_charge_currency", lastCharge.getCurrency());
-                additionalDataMap.put("last_charge_description", lastCharge.getDescription());
-                additionalDataMap.put("last_charge_failure_code", lastCharge.getFailureCode());
-                additionalDataMap.put("last_charge_failure_message", lastCharge.getFailureMessage());
-                additionalDataMap.put("last_charge_id", lastCharge.getId());
-                additionalDataMap.put("last_charge_metadata", lastCharge.getMetadata());
-                additionalDataMap.put("last_charge_object", lastCharge.getObject());
-                additionalDataMap.put("last_charge_outcome", lastCharge.getOutcome());
-                additionalDataMap.put("last_charge_paid", lastCharge.getPaid());
-                additionalDataMap.put("last_charge_payment_method_id", lastCharge.getPaymentMethod());
-                if (lastCharge.getPaymentMethodDetails() != null) {
-                    additionalDataMap.put("last_charge_payment_method_type", lastCharge.getPaymentMethodDetails().getType());
-                }
-                additionalDataMap.put("last_charge_statement_descriptor", lastCharge.getStatementDescriptor());
-                additionalDataMap.put("last_charge_status", lastCharge.getStatus());
-            }
-        }
         additionalDataMap.put("confirmation_method", stripePaymentIntent.getConfirmationMethod());
         additionalDataMap.put("created", stripePaymentIntent.getCreated());
         additionalDataMap.put("currency", stripePaymentIntent.getCurrency());
@@ -300,6 +270,29 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("statement_descriptor", stripePaymentIntent.getStatementDescriptor());
         additionalDataMap.put("status", stripePaymentIntent.getStatus());
         additionalDataMap.put("transfer_group", stripePaymentIntent.getTransferGroup());
+
+        if (lastCharge != null) {
+            // Keep the state for the last charge (maps to our payment transaction)
+            additionalDataMap.put("last_charge_amount", lastCharge.getAmount());
+            additionalDataMap.put("last_charge_authorization_code", lastCharge.getAuthorizationCode());
+            additionalDataMap.put("last_charge_balance_transaction_id", lastCharge.getBalanceTransaction());
+            additionalDataMap.put("last_charge_created", lastCharge.getCreated());
+            additionalDataMap.put("last_charge_currency", lastCharge.getCurrency());
+            additionalDataMap.put("last_charge_description", lastCharge.getDescription());
+            additionalDataMap.put("last_charge_failure_code", lastCharge.getFailureCode());
+            additionalDataMap.put("last_charge_failure_message", lastCharge.getFailureMessage());
+            additionalDataMap.put("last_charge_id", lastCharge.getId());
+            additionalDataMap.put("last_charge_metadata", lastCharge.getMetadata());
+            additionalDataMap.put("last_charge_object", lastCharge.getObject());
+            additionalDataMap.put("last_charge_outcome", lastCharge.getOutcome());
+            additionalDataMap.put("last_charge_paid", lastCharge.getPaid());
+            additionalDataMap.put("last_charge_payment_method_id", lastCharge.getPaymentMethod());
+            if (lastCharge.getPaymentMethodDetails() != null) {
+                additionalDataMap.put("last_charge_payment_method_type", lastCharge.getPaymentMethodDetails().getType());
+            }
+            additionalDataMap.put("last_charge_statement_descriptor", lastCharge.getStatementDescriptor());
+            additionalDataMap.put("last_charge_status", lastCharge.getStatus());
+        }
 
         return additionalDataMap;
     }
