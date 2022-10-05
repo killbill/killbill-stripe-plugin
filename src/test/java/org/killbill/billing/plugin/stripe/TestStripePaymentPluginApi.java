@@ -871,7 +871,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         amounts.add(32);
         amounts.add(45);
         params.put("amounts", amounts);
-        for (final PaymentSource source : customer.getSources().autoPagingIterable()) {
+        for (final PaymentSource source : customer.getSources().autoPagingIterable(params, options)) {
             if (source instanceof BankAccount) {
                 ((BankAccount) source).verify(params, options);
                 break;

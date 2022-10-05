@@ -204,7 +204,6 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         if (charge.getPaymentIntent() != null) {
                             final PaymentIntent intent = PaymentIntent.retrieve(charge.getPaymentIntent(), requestOptions);
                             logger.info("Fixing Stripe transaction {}", intent.getId());
-                            // FIXME-STRIPE-87: should we use searchParams.toMap() instead?
                             final Charge lastCharge = getLastCharge(intent, Collections.emptyMap(), requestOptions);
                             dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, lastCharge, context.getTenantId());
                             wasRefreshed = true;
