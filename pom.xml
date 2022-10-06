@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.145.3-016b634-SNAPSHOT</version>
+        <version>0.145.3-71679cd-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
@@ -95,7 +95,7 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>20.133.0</version>
+            <version>21.10.0</version>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
