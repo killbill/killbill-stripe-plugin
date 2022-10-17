@@ -75,6 +75,62 @@ public class TestStripePaymentPluginApi extends TestBase {
     private PaymentMethodPlugin paymentMethodPlugin;
 
     @Test(groups = "integration")
+    public void testPaymentMethodAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
+        final UUID kbAccountId = account.getId();
+
+        assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
+
+        Map<String, Object> paymentMethodParams = new HashMap<>();
+        paymentMethodParams.put("type", "card");
+        paymentMethodParams.put("card", ImmutableMap.of("number", "4242424242424242", 
+                                                        "exp_month", "6", 
+                                                        "exp_year", "2030", 
+                                                        "cvc", "324"));
+        Map<String, Object> ownerParams = new HashMap<>();
+        ownerParams.put("name", "Autobahn");
+        ownerParams.put("email", "email@email.com");
+        paymentMethodParams.put("billing_details", ownerParams);
+
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        final PaymentMethod paymentMethod = PaymentMethod.create(paymentMethodParams, options);
+
+        final UUID kbPaymentMethodId = UUID.randomUUID();
+        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
+                                                kbPaymentMethodId,
+                                                new PluginPaymentMethodPlugin(kbPaymentMethodId, paymentMethod.getId(), false, ImmutableList.of()),
+                                                true,
+                                                null,
+                                                context);
+
+        final Payment payment1 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, Currency.EUR, killbillApi);
+        final PaymentTransaction purchaseTransaction1 = TestUtils.buildPaymentTransaction(payment1, TransactionType.PURCHASE, BigDecimal.TEN, payment1.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin1 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment1.getId(),
+                                                                                                        purchaseTransaction1.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction1.getAmount(),
+                                                                                                        purchaseTransaction1.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction1, purchaseInfoPlugin1);
+        verifyPaymentTransactionInfoPlugin(payment1, purchaseTransaction1, purchaseInfoPlugin1, PaymentPluginStatus.PROCESSED);
+
+        // Verify we can re-use the source
+        final Payment payment2 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, Currency.EUR, killbillApi);
+        final PaymentTransaction purchaseTransaction2 = TestUtils.buildPaymentTransaction(payment2, TransactionType.PURCHASE, BigDecimal.TEN, payment2.getCurrency());
+        final PaymentTransactionInfoPlugin purchaseInfoPlugin2 = stripePaymentPluginApi.purchasePayment(account.getId(),
+                                                                                                        payment2.getId(),
+                                                                                                        purchaseTransaction2.getId(),
+                                                                                                        kbPaymentMethodId,
+                                                                                                        purchaseTransaction2.getAmount(),
+                                                                                                        purchaseTransaction2.getCurrency(),
+                                                                                                        ImmutableList.of(),
+                                                                                                        context);
+        TestUtils.updatePaymentTransaction(purchaseTransaction2, purchaseInfoPlugin2);
+        verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
+    }
+
+    @Test(groups = "integration")
     public void testSEPADebitSourceAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
