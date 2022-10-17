@@ -289,6 +289,7 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("payment_intent_id", session.getPaymentIntent());
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
         additionalDataMap.put("setup_intent_id", session.getSetupIntent());
+        additionalDataMap.put("client_secret", session.getSetupIntentObject().getClientSecret());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
         if (pk != null) {
