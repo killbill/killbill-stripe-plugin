@@ -289,11 +289,12 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("payment_intent_id", session.getPaymentIntent());
         additionalDataMap.put("payment_method_types", session.getPaymentMethodTypes());
         additionalDataMap.put("setup_intent_id", session.getSetupIntent());
-        additionalDataMap.put("client_secret", session.getSetupIntentObject().getClientSecret());
         additionalDataMap.put("subscription_id", session.getSubscription());
         additionalDataMap.put("success_url", session.getSuccessUrl());
         if (pk != null) {
             additionalDataMap.put("publishable_key", pk);
+            additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
+            additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
         }
 
         return additionalDataMap;
