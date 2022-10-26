@@ -293,8 +293,6 @@ public abstract class StripePluginProperties {
         additionalDataMap.put("success_url", session.getSuccessUrl());
         if (pk != null) {
             additionalDataMap.put("publishable_key", pk);
-            additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
-            additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
         }
 
         return additionalDataMap;

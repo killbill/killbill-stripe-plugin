@@ -317,7 +317,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
                     ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeToken.getId());
                     String customerId = createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
-                    stripeId = retrievePaymentMethod(customerId, existingCustomerId, stripeToken.getId(), requestOptions);
+                    stripeId = retrievePaymentMethod(customerId, existingCustomerId, getTokenInnerId(stripeToken), requestOptions);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
@@ -355,6 +355,17 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             dao.addPaymentMethod(kbAccountId, kbPaymentMethodId, additionalDataMap, stripeId, utcNow, context.getTenantId());
         } catch (final SQLException e) {
             throw new PaymentPluginApiException("Unable to add payment method", e);
+        }
+    }
+
+    private String getTokenInnerId(Token token) {
+        switch (token.getType()) {
+            case "card":
+                return token.getCard().getId();
+            case "bank_account":
+                return token.getBankAccount().getId();
+            default:
+                return token.getId();
         }
     }
 
@@ -745,7 +756,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               session,
                               clock.getUTCNow(),
                               context.getTenantId());
-            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey())));
+            final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey());
+            additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
+            additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
+            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(additionalDataMap));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
         } catch (final SQLException e) {
