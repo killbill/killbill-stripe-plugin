@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import org.asynchttpclient.BoundRequestBuilder;
 import org.joda.time.Period;
@@ -715,6 +717,8 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                                                                            customFields,
                                                                                                                            ImmutableList.of(),
                                                                                                                            context);
+        assertEquals(hostedPaymentPageFormDescriptor.getFormFields().stream().filter(item -> item.getKey().equals("setup_intent_client_secret")).collect(Collectors.toList()).size(), 1);
+
         final String sessionId = PluginProperties.findPluginPropertyValue("id", hostedPaymentPageFormDescriptor.getFormFields());
         assertNotNull(sessionId);
 
