@@ -20,6 +20,7 @@ package org.killbill.billing.plugin.stripe;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -721,7 +722,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         String stripeCustomerId = getCustomerIdNoException(kbAccountId, context);
         try {
-            stripeCustomerId = createStripeCustomer(kbAccountId, stripeCustomerId, null, requestOptions, properties, context);
+            stripeCustomerId = createStripeCustomer(kbAccountId, stripeCustomerId, ImmutableMap.of(), requestOptions, properties, context);
         } catch (StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe customer", e);
         }
@@ -742,6 +743,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         params.put("payment_method_types", customPaymentMethods != null && customPaymentMethods.getValue() != null ? customPaymentMethods.getValue() : defaultPaymentMethodTypes);
 
         params.put("mode", "setup");
+        params.put("expand", Arrays.asList("setup_intent", "payment_intent"));
         params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success?sessionId={CHECKOUT_SESSION_ID}", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
@@ -757,8 +759,12 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               clock.getUTCNow(),
                               context.getTenantId());
             final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey());
-            additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
-            additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
+            if (session != null && session.getSetupIntentObject() != null) {
+                additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
+            }
+            if (session != null && session.getPaymentIntentObject() != null) {
+                additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
+            }
             return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(additionalDataMap));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
