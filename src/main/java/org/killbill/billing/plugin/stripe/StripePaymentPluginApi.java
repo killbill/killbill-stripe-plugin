@@ -759,10 +759,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               clock.getUTCNow(),
                               context.getTenantId());
             final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey());
-            if (session != null && session.getSetupIntentObject() != null) {
+            if (session.getSetupIntentObject() != null) {
                 additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
             }
-            if (session != null && session.getPaymentIntentObject() != null) {
+            if (session.getPaymentIntentObject() != null) {
                 additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
             }
             return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(additionalDataMap));
