@@ -726,7 +726,7 @@ public class TestStripePaymentPluginApi extends TestBase {
 
         // Still no payment method
         assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
-        assertEquals(killbillApi.getCustomFieldUserApi().getCustomFieldsForAccountType(kbAccountId, ObjectType.ACCOUNT, context).size(), 0);
+        assertEquals(killbillApi.getCustomFieldUserApi().getCustomFieldsForAccountType(kbAccountId, ObjectType.ACCOUNT, context).size(), 1);
 
         final UUID kbPaymentMethodId = UUID.randomUUID();
         stripePaymentPluginApi.addPaymentMethod(kbAccountId,
