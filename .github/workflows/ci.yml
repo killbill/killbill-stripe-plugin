@@ -2,6 +2,7 @@ name: ci
 
 on:
   - push
+  - pull_request
   - workflow_dispatch
 
 env:
@@ -24,6 +25,14 @@ jobs:
           - travis
           - integration-mysql
           - integration-postgresql
+        is-pr:
+          - ${{ contains(github.event_name, 'pull_request') }}
+        # PR don't have access to secrets
+        exclude:
+          - is-pr: true
+            profile: integration-mysql
+          - is-pr: true
+            profile: integration-postgresql
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
