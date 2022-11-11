@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.145.3-dd6e4f8-SNAPSHOT</version>
+        <version>0.145.3-8ff3c94-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
@@ -99,11 +99,6 @@
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
             <version>21.11.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>testing-mysql-server</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.zonky.test</groupId>
@@ -204,6 +199,11 @@
             <groupId>org.kill-bill.commons</groupId>
             <artifactId>killbill-metrics-api</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kill-bill.testing</groupId>
+            <artifactId>testing-mysql-server</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
