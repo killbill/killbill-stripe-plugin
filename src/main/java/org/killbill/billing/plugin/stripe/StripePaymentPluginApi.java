@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -334,11 +335,14 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         final Map<String, Object> additionalDataMap;
         final String stripeId;
+        final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
         if (paymentMethodIdInStripe != null) {
             if ("payment_method".equals(objectType)) {
                 try {
                     final PaymentMethod stripePaymentMethod = PaymentMethod.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentMethod);
+                    ImmutableMap<String, Object> params = ImmutableMap.of("payment_method", stripePaymentMethod.getId());
+                    createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
                     stripeId = stripePaymentMethod.getId();
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
@@ -347,7 +351,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
-                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeToken.getId(), requestOptions, allProperties, context);
+                    ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeToken.getId());
+                    String customerId = createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
+                    stripeId = retrievePaymentMethod(customerId, existingCustomerId, getTokenInnerId(stripeToken), requestOptions);
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
@@ -356,14 +362,15 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     // The Stripe sourceId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
                     final Source stripeSource = Source.retrieve(paymentMethodIdInStripe, requestOptions);
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSource);
-                    stripeId = createStripeCustomer(kbAccountId, paymentMethodIdInStripe, stripeSource.getId(), requestOptions, allProperties, context);
+                    ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeSource.getId());
+                    createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
+                    stripeId = stripeSource.getId();
                 } catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
             } else if ("bank_account".equals(objectType)) {
                 try {
                     // The Stripe bankAccountId must be passed as the PaymentMethodPlugin#getExternalPaymentMethodId
-                    final String existingCustomerId = getCustomerId(kbAccountId, context);
                     final PaymentSource paymentSource = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions)
                                                                 .getSources()
                                                                 .retrieve(paymentMethodIdInStripe, requestOptions);
@@ -387,45 +394,78 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         }
     }
 
+    private String getTokenInnerId(Token token) {
+        switch (token.getType()) {
+            case "card":
+                return token.getCard().getId();
+            case "bank_account":
+                return token.getBankAccount().getId();
+            default:
+                return token.getId();
+        }
+    }
 
     private String createStripeCustomer(final UUID kbAccountId,
-                                        final String paymentMethodIdInStripe,
-                                        final String defaultStripeId,
+                                        final String existingCustomerId,
+                                        final ImmutableMap<String, Object> customerParams,
                                         final RequestOptions requestOptions,
                                         final Iterable<PluginProperty> allProperties,
                                         final CallContext context) throws StripeException, PaymentPluginApiException {
-      final String stripeId;
-      final String existingCustomerId = getCustomerIdNoException(kbAccountId, context);
-      final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
-      if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
-          final Account account = getAccount(kbAccountId, context);
+        final String createStripeCustomerProperty = PluginProperties.findPluginPropertyValue("createStripeCustomer", allProperties);
 
-          final Map<String, Object> customerParams = new HashMap<>();
-          customerParams.put("source", paymentMethodIdInStripe);
-          customerParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
-                                                         "kbAccountExternalKey", account.getExternalKey()));
+        if (existingCustomerId == null && (createStripeCustomerProperty == null || Boolean.parseBoolean(createStripeCustomerProperty))) {
+            final Account account = getAccount(kbAccountId, context);
 
-          logger.info("Creating customer in Stripe to be able to re-use the token");
-          final Customer customer = Customer.create(customerParams, requestOptions);
-          // The id to charge now is the default source (e.g. card), not the token
-          stripeId = customer.getDefaultSource();
-          // Add magic custom field
-          logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, customer.getId());
-          final CustomField customField = new PluginCustomField(kbAccountId,
-                                                                ObjectType.ACCOUNT,
-                                                                "STRIPE_CUSTOMER_ID",
-                                                                customer.getId(),
-                                                                clock.getUTCNow());
-          try {
-              killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.<CustomField>of(customField), context);
-          } catch (final CustomFieldApiException e) {
-              throw new PaymentPluginApiException("Unable to add custom field", e);
-          }
-      } else {
-          // Stripe Customer exists OR creation is disabled: in those cases use the default ID to charge
-          stripeId = defaultStripeId;
-      }
-      return stripeId;
+            // add new customer to stripe account
+            final Map<String, Object> address = new HashMap<>();
+            address.put("city", account.getCity());
+            address.put("country", account.getCountry());
+            address.put("line1", account.getAddress1());
+            address.put("line2", account.getAddress2());
+            address.put("postal_code", account.getPostalCode());
+            address.put("state", account.getStateOrProvince());
+
+            final Map<String, Object> params = new HashMap<>(customerParams);
+            params.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
+                                                    "kbAccountExternalKey", account.getExternalKey()));
+            params.put("email", account.getEmail());
+            params.put("name", account.getName());
+            params.put("address", address);
+            params.put("description", "created via KB");
+        
+            // Stripe Customer creation
+            logger.info("Creating customer in Stripe to be able to re-use the payment method");
+            final Customer customer = Customer.create(params, requestOptions);
+
+            // Add magic custom field
+            logger.info("Mapping kbAccountId {} to Stripe customer {}", kbAccountId, customer.getId());
+            final CustomField customField = new PluginCustomField(kbAccountId,
+                                                                    ObjectType.ACCOUNT,
+                                                                    "STRIPE_CUSTOMER_ID",
+                                                                    customer.getId(),
+                                                                    clock.getUTCNow());
+            try {
+                killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.<CustomField>of(customField), context);
+            } catch (final CustomFieldApiException e) {
+                throw new PaymentPluginApiException("Unable to add custom field", e);
+            }
+
+            return customer.getId();
+        } else {
+            // Stripe Customer exists OR creation is disabled: in those cases use the default ID to charge
+            return existingCustomerId;
+        }
+    }
+
+    private String retrievePaymentMethod(final String customerId, final String existingCustomerId, final String defaultStripeId, final RequestOptions requestOptions) throws StripeException, PaymentPluginApiException {
+        // The id to charge now is the default source (e.g. card), not the token
+        if (existingCustomerId == null && customerId != null) {
+            String defaultSource = Customer.retrieve(customerId, requestOptions).getDefaultSource();
+            if (defaultSource != null) {
+                return defaultSource;
+            }
+        }
+        return defaultStripeId;
     }
 
     @Override
@@ -711,29 +751,11 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     public HostedPaymentPageFormDescriptor buildFormDescriptor(final UUID kbAccountId, final Iterable<PluginProperty> customFields, final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
         final RequestOptions requestOptions = buildRequestOptions(context);
 
-        final Account account = getAccount(kbAccountId, context);
-
         String stripeCustomerId = getCustomerIdNoException(kbAccountId, context);
-        if (stripeCustomerId == null) {
-            // add new customer to stripe account
-            Map<String, Object> address = new HashMap<>();
-            address.put("city", account.getCity());
-            address.put("country", account.getCountry());
-            address.put("line1", account.getAddress1());
-            address.put("line2", account.getAddress2());
-            address.put("postal_code", account.getPostalCode());
-            address.put("state", account.getStateOrProvince());
-            Map<String, Object> params = new HashMap<>();
-            params.put("email", account.getEmail());
-            params.put("name", account.getName());
-            params.put("address", address);
-            params.put("description", "created via KB");
-            try {
-                Customer customer = Customer.create(params, requestOptions);
-                stripeCustomerId = customer.getId();
-            } catch (StripeException e) {
-                throw new PaymentPluginApiException("Unable to create Stripe customer", e);
-            }
+        try {
+            stripeCustomerId = createStripeCustomer(kbAccountId, stripeCustomerId, ImmutableMap.of(), requestOptions, properties, context);
+        } catch (StripeException e) {
+            throw new PaymentPluginApiException("Unable to create Stripe customer", e);
         }
 
         final Map<String, Object> params = new HashMap<String, Object>();
@@ -752,6 +774,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         params.put("payment_method_types", customPaymentMethods != null && customPaymentMethods.getValue() != null ? customPaymentMethods.getValue() : defaultPaymentMethodTypes);
 
         params.put("mode", "setup");
+        params.put("expand", Arrays.asList("setup_intent", "payment_intent"));
         params.put("success_url", PluginProperties.getValue("success_url", "https://example.com/success?sessionId={CHECKOUT_SESSION_ID}", customFields));
         params.put("cancel_url", PluginProperties.getValue("cancel_url", "https://example.com/cancel", customFields));
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
@@ -766,7 +789,14 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                               session,
                               clock.getUTCNow(),
                               context.getTenantId());
-            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey())));
+            final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(session, stripeConfigProperties.getPublicKey());
+            if (session.getSetupIntentObject() != null) {
+                additionalDataMap.put("setup_intent_client_secret", session.getSetupIntentObject().getClientSecret());
+            }
+            if (session.getPaymentIntentObject() != null) {
+                additionalDataMap.put("payment_intent_client_secret", session.getPaymentIntentObject().getClientSecret());
+            }
+            return new PluginHostedPaymentPageFormDescriptor(kbAccountId, null, PluginProperties.buildPluginProperties(additionalDataMap));
         } catch (final StripeException e) {
             throw new PaymentPluginApiException("Unable to create Stripe session", e);
         } catch (final SQLException e) {
