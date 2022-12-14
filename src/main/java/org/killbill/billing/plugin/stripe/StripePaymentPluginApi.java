@@ -20,6 +20,7 @@ package org.killbill.billing.plugin.stripe;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,6 +74,7 @@ import com.google.common.collect.ImmutableMap;
 import com.stripe.exception.CardException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
+import com.stripe.model.ChargeSearchResult;
 import com.stripe.model.Customer;
 import com.stripe.model.HasId;
 import com.stripe.model.PaymentIntent;
@@ -85,6 +87,7 @@ import com.stripe.model.Source;
 import com.stripe.model.Token;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.ChargeSearchParams;
 import com.stripe.param.PaymentIntentCancelParams;
 
 public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeResponsesRecord, StripeResponses, StripePaymentMethodsRecord, StripePaymentMethods> {
@@ -95,7 +98,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         public final String value;
 
-        CaptureMethod(String value) {
+        CaptureMethod(final String value) {
             this.value = value;
         }
     }
@@ -109,7 +112,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     private final StripeConfigPropertiesConfigurationHandler stripeConfigPropertiesConfigurationHandler;
     private final StripeDao dao;
 
-    static final List<String> metadataFilter = ImmutableList.of("payment_method_types");
+    static final List<String> metadataFilter = List.of("payment_method_types");
 
     // needed for API calls to expand the response to contain the 'Sources'
     // https://stripe.com/docs/api/expanding_objects?lang=java
@@ -124,8 +127,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         super(killbillAPI, configProperties, clock, dao);
         this.stripeConfigPropertiesConfigurationHandler = stripeConfigPropertiesConfigurationHandler;
         this.dao = dao;
-        expandSourcesParams = new HashMap<String, Object>();
-        expandSourcesParams.put("expand", ImmutableList.of("sources"));
+        expandSourcesParams = new HashMap<>();
+        expandSourcesParams.put("expand", List.of("sources"));
     }
 
 
@@ -145,12 +148,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentTransactionInfoPlugin transactionToExpire = expiredPaymentPolicy.isExpired(transactions);
         if (transactionToExpire != null) {
             logger.info("Canceling expired Stripe transaction {} (created {})", transactionToExpire.getStripeResponseRecord().getStripeId(), transactionToExpire.getStripeResponseRecord().getCreatedDate());
-            final Map additionalMetadata = ImmutableMap.builder()
-                                                       .put(PROPERTY_OVERRIDDEN_TRANSACTION_STATUS,
-                                                            PaymentPluginStatus.CANCELED.toString())
-                                                       .put("message",
-                                                            "Payment Expired - Cancelled by Janitor")
-                                                       .build();
+            final Map<String, String> additionalMetadata = Map.of(PROPERTY_OVERRIDDEN_TRANSACTION_STATUS,
+                                                                  PaymentPluginStatus.CANCELED.toString(),
+                                                                  "message",
+                                                                  "Payment Expired - Cancelled by Janitor");
             try {
                 dao.updateResponse(transactionToExpire.getStripeResponseRecord(), additionalMetadata);
             } catch (final SQLException e) {
@@ -187,8 +188,42 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                     requestOptions
                             );
                     }
-                    dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, context.getTenantId());
+                    final Charge lastCharge = getLastCharge(intent, Collections.emptyMap(), requestOptions);
+                    dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, lastCharge, context.getTenantId());
                     wasRefreshed = true;
+                } catch (final StripeException e) {
+                    logger.warn("Unable to fetch latest payment state in Stripe, data might be stale", e);
+                } catch (final SQLException e) {
+                    throw new PaymentPluginApiException("Unable to refresh payment", e);
+                }
+            } else if (transaction.getStatus() == PaymentPluginStatus.UNDEFINED) {
+                final ChargeSearchParams searchParams = ChargeSearchParams.builder().setQuery("metadata['kbTransactionId']:'" + transaction.getKbTransactionPaymentId() + "'").build();
+                try {
+                    final ChargeSearchResult result = Charge.search(searchParams, requestOptions);
+                    if (result.getData().size() == 1) {
+                        final Charge charge = result.getData().get(0);
+                        if (charge.getPaymentIntent() != null) {
+                            final PaymentIntent intent = PaymentIntent.retrieve(charge.getPaymentIntent(), requestOptions);
+                            logger.info("Fixing Stripe transaction {}", intent.getId());
+                            final Charge lastCharge = getLastCharge(intent, Collections.emptyMap(), requestOptions);
+                            dao.updateResponse(transaction.getKbTransactionPaymentId(), intent, lastCharge, context.getTenantId());
+                            wasRefreshed = true;
+                        }
+                    } else if (result.getData().isEmpty()) {
+                        logger.info("Canceling UNKNOWN Stripe transaction for kbTransactionId={}", transaction.getKbTransactionPaymentId());
+                        final Map<String, Object> additionalMetadata = ImmutableMap.<String, Object>builder()
+                                                                                   .put(PROPERTY_OVERRIDDEN_TRANSACTION_STATUS,
+                                                                                        PaymentPluginStatus.CANCELED.toString())
+                                                                                   .put("message",
+                                                                                        "Payment didn't happen - Cancelled by Janitor")
+                                                                                   .build();
+                        try {
+                            dao.updateResponse(transaction.getKbTransactionPaymentId(), additionalMetadata, context.getTenantId());
+                            wasRefreshed = true;
+                        } catch (final SQLException e) {
+                            throw new PaymentPluginApiException("Unable to update expired payment", e);
+                        }
+                    } // Anything else, manual checks needed
                 } catch (final StripeException e) {
                     logger.warn("Unable to fetch latest payment state in Stripe, data might be stale", e);
                 } catch (final SQLException e) {
@@ -486,23 +521,23 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final RequestOptions requestOptions = buildRequestOptions(context);
 
         // Track the objects (the various Stripe APIs can return the same objects under a different type)
-        final Set<String> stripeObjectsTreated = new HashSet<String>();
+        final Set<String> stripeObjectsTreated = new HashSet<>();
         try {
             // Start with PaymentMethod...
-            final Map<String, Object> paymentMethodParams = new HashMap<String, Object>();
+            final Map<String, Object> paymentMethodParams = new HashMap<>();
             paymentMethodParams.put("customer", stripeCustomerId);
             paymentMethodParams.put("type", "card");
-            final Iterable<PaymentMethod> stripePaymentMethodsCard = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
+            final Iterable<PaymentMethod> stripePaymentMethodsCard = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable(paymentMethodParams, requestOptions);
             syncPaymentMethods(kbAccountId, stripePaymentMethodsCard, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             paymentMethodParams.put("type", "sepa_debit");
-            final Iterable<PaymentMethod> stripePaymentMethodsSepaDebit = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable();
+            final Iterable<PaymentMethod> stripePaymentMethodsSepaDebit = PaymentMethod.list(paymentMethodParams, requestOptions).autoPagingIterable(paymentMethodParams, requestOptions);
             syncPaymentMethods(kbAccountId, stripePaymentMethodsSepaDebit, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
 
             // Then go through the sources
             final PaymentSourceCollection psc = Customer.retrieve(stripeCustomerId, expandSourcesParams, requestOptions).getSources();
             if (psc != null) {
-                final Iterable<? extends HasId> stripeSources = psc.autoPagingIterable();
+                final Iterable<? extends HasId> stripeSources = psc.autoPagingIterable(paymentMethodParams, requestOptions);
                 syncPaymentMethods(kbAccountId, stripeSources, existingPaymentMethodByStripeId, stripeObjectsTreated, context);
             }
         } catch (final StripeException e) {
@@ -709,11 +744,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
     @VisibleForTesting
     RequestOptions buildRequestOptions(final TenantContext context) {
         final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
-        return RequestOptions.builder()
-                             .setConnectTimeout(Integer.parseInt(stripeConfigProperties.getConnectionTimeout()))
-                             .setReadTimeout(Integer.parseInt(stripeConfigProperties.getReadTimeout()))
-                             .setApiKey(stripeConfigProperties.getApiKey())
-                             .build();
+        return stripeConfigProperties.toRequestOptions();
     }
 
     @Override
@@ -826,7 +857,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                  }
                                                  paymentIntentParams.put("metadata", ImmutableMap.of("kbAccountId", kbAccountId,
                                                                                                      "kbPaymentId", kbPaymentId,
-                                                                                                     "kbTransactionId", kbTransactionId,
+                                                                                                     "kbTransactionId", kbTransactionId, // Used by the Janitor below
                                                                                                      "kbPaymentMethodId", kbPaymentMethodId));
 
                                                  final Map additionalData = StripeDao.fromAdditionalData(paymentMethodsRecord.getAdditionalData());
@@ -886,7 +917,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         final StripePaymentMethodsRecord nonNullPaymentMethodsRecord = getStripePaymentMethodsRecord(kbPaymentMethodId, context);
         final DateTime utcNow = clock.getUTCNow();
 
-        PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
+        final RequestOptions requestOptions = buildRequestOptions(context);
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
@@ -894,24 +927,26 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord);
             } catch (final CardException e) {
                 try {
-                    final RequestOptions requestOptions = buildRequestOptions(context);
                     final Charge charge = Charge.retrieve(e.getCharge(), requestOptions);
                     final String paymentIntentId = charge.getPaymentIntent();
                     final PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
                     response = paymentIntent;
                 } catch (final StripeException e2) {
-                    throw new PaymentPluginApiException("Error getting card error details from Stripe", e2);
+                    logger.warn("Error connecting to Stripe", e2);
+                    stripeException = e2;
                 }
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                logger.warn("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final Charge lastCharge = getLastCharge(response, Collections.emptyMap(), requestOptions);
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, lastCharge, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response.toString(), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 
@@ -940,22 +975,25 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
         final DateTime utcNow = clock.getUTCNow();
 
-        final PaymentIntent response;
+        PaymentIntent response = null;
+        StripeException stripeException = null;
         if (shouldSkipStripe(properties)) {
             throw new UnsupportedOperationException("TODO");
         } else {
             try {
                 response = transactionExecutor.execute(account, nonNullPaymentMethodsRecord, previousResponse);
             } catch (final StripeException e) {
-                throw new PaymentPluginApiException("Error connecting to Stripe", e);
+                logger.warn("Error connecting to Stripe", e);
+                stripeException = e;
             }
         }
 
         try {
-            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, utcNow, context.getTenantId());
+            final Charge lastCharge = getLastCharge(response, Collections.emptyMap(), buildRequestOptions(context));
+            final StripeResponsesRecord responsesRecord = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, transactionType, amount, currency, response, lastCharge, stripeException, utcNow, context.getTenantId());
             return StripePaymentTransactionInfoPlugin.build(responsesRecord);
         } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + (response.toString()), e);
+            throw new PaymentPluginApiException("Payment went through, but we encountered a database error. Payment details: " + response, e);
         }
     }
 
@@ -1005,4 +1043,19 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
         return "true".equals(PluginProperties.findPluginPropertyValue("skipGw", properties)) || "true".equals(PluginProperties.findPluginPropertyValue("skip_gw", properties));
     }
 
+    private Charge getLastCharge(@Nullable final PaymentIntent stripePaymentIntent,
+                                 final Map<String, Object> params,
+                                 final RequestOptions requestOptions) {
+        if (stripePaymentIntent == null || stripePaymentIntent.getCharges() == null) {
+            return null;
+        }
+
+        Charge lastCharge = null;
+        for (final Charge charge : stripePaymentIntent.getCharges().autoPagingIterable(params, requestOptions)) {
+            if (lastCharge == null || lastCharge.getCreated() < charge.getCreated()) {
+                lastCharge = charge;
+            }
+        }
+        return lastCharge;
+    }
 }

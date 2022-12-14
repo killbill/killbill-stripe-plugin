@@ -1,0 +1,44 @@
+#
+# Copyright 2020-2022 Equinix, Inc
+# Copyright 2014-2022 The Billing Project, LLC
+#
+# The Billing Project licenses this file to you under the Apache License, version 2.0
+# (the "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at:
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+version: '3.8'
+
+services:
+  killbill:
+    network_mode: host
+    image: killbill/killbill:0.23.0-9116fa4-SNAPSHOT
+    environment:
+      - KILLBILL_CATALOG_URI=SpyCarAdvanced.xml
+      - KILLBILL_DAO_URL=jdbc:postgresql://127.0.0.1:5432/killbill
+      - KILLBILL_DAO_USER=postgres
+      - KILLBILL_DAO_PASSWORD=postgres
+      - KILLBILL_SERVER_TEST_MODE=true
+      - KILLBILL_INVOICE_SANITY_SAFETY_BOUND_ENABLED=false
+      - KILLBILL_INVOICE_MAX_DAILY_NUMBER_OF_ITEMS_SAFETY_BOUND=-1
+    depends_on:
+      - db
+    volumes:
+      - /var/tmp/bundles/plugins/java/stripe-plugin:/var/lib/killbill/bundles/plugins/java/stripe-plugin
+      - /var/tmp/tomcat_logs:/var/lib/tomcat/logs
+  db:
+    network_mode: host
+    image: killbill/postgresql:0.23
+    environment:
+      - POSTGRES_PASSWORD=postgres
+  toxiproxy:
+    network_mode: host
+    image: ghcr.io/shopify/toxiproxy

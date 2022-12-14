@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import org.joda.time.DateTime;
+import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.killbill.billing.catalog.api.Currency;
 import org.killbill.billing.payment.api.PluginProperty;
@@ -37,13 +39,16 @@ import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.dao.payment.PluginPaymentDao;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.google.common.collect.ImmutableMap;
+
 import org.killbill.billing.plugin.stripe.StripePluginProperties;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripePaymentMethods;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.StripeResponses;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeHppRequestsRecord;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripePaymentMethodsRecord;
 import org.killbill.billing.plugin.stripe.dao.gen.tables.records.StripeResponsesRecord;
+
+import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
 
@@ -180,47 +185,56 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
                                              final TransactionType transactionType,
                                              final BigDecimal amount,
                                              final Currency currency,
-                                             final PaymentIntent stripePaymentIntent,
+                                             @Nullable final PaymentIntent stripePaymentIntent,
+                                             @Nullable final Charge lastCharge,
+                                             @Nullable final StripeException stripeException,
                                              final DateTime utcNow,
                                              final UUID kbTenantId) throws SQLException {
-        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent);
+        final Map<String, Object> additionalDataMap;
+        if (stripePaymentIntent != null) {
+            additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent, lastCharge);
+        } else if (stripeException != null) {
+            additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeException);
+        } else {
+            additionalDataMap = Collections.emptyMap();
+        }
 
         return execute(dataSource.getConnection(),
-                       new WithConnectionCallback<StripeResponsesRecord>() {
-                           @Override
-                           public StripeResponsesRecord withConnection(final Connection conn) throws SQLException {
-                               return DSL.using(conn, dialect, settings)
-                                         .insertInto(STRIPE_RESPONSES,
-                                                     STRIPE_RESPONSES.KB_ACCOUNT_ID,
-                                                     STRIPE_RESPONSES.KB_PAYMENT_ID,
-                                                     STRIPE_RESPONSES.KB_PAYMENT_TRANSACTION_ID,
-                                                     STRIPE_RESPONSES.TRANSACTION_TYPE,
-                                                     STRIPE_RESPONSES.AMOUNT,
-                                                     STRIPE_RESPONSES.CURRENCY,
-                                                     STRIPE_RESPONSES.STRIPE_ID,
-                                                     STRIPE_RESPONSES.ADDITIONAL_DATA,
-                                                     STRIPE_RESPONSES.CREATED_DATE,
-                                                     STRIPE_RESPONSES.KB_TENANT_ID)
-                                         .values(kbAccountId.toString(),
-                                                 kbPaymentId.toString(),
-                                                 kbPaymentTransactionId.toString(),
-                                                 transactionType.toString(),
-                                                 amount,
-                                                 currency == null ? null : currency.name(),
-                                                 stripePaymentIntent.getId(),
-                                                 asString(additionalDataMap),
-                                                 toLocalDateTime(utcNow),
-                                                 kbTenantId.toString())
-                                         .returning()
-                                         .fetchOne();
-                           }
-                       });
+                       conn -> DSL.using(conn, dialect, settings).transactionResult(configuration -> {
+                           final DSLContext dslContext = DSL.using(configuration);
+                           dslContext.insertInto(STRIPE_RESPONSES,
+                                                 STRIPE_RESPONSES.KB_ACCOUNT_ID,
+                                                 STRIPE_RESPONSES.KB_PAYMENT_ID,
+                                                 STRIPE_RESPONSES.KB_PAYMENT_TRANSACTION_ID,
+                                                 STRIPE_RESPONSES.TRANSACTION_TYPE,
+                                                 STRIPE_RESPONSES.AMOUNT,
+                                                 STRIPE_RESPONSES.CURRENCY,
+                                                 STRIPE_RESPONSES.STRIPE_ID,
+                                                 STRIPE_RESPONSES.ADDITIONAL_DATA,
+                                                 STRIPE_RESPONSES.CREATED_DATE,
+                                                 STRIPE_RESPONSES.KB_TENANT_ID)
+                              .values(kbAccountId.toString(),
+                                      kbPaymentId.toString(),
+                                      kbPaymentTransactionId.toString(),
+                                      transactionType.toString(),
+                                      amount,
+                                      currency == null ? null : currency.name(),
+                                      stripePaymentIntent == null ? null : stripePaymentIntent.getId(),
+                                      asString(additionalDataMap),
+                                      toLocalDateTime(utcNow),
+                                      kbTenantId.toString())
+                              .execute();
+                           return dslContext.fetchOne(
+                                   STRIPE_RESPONSES,
+                                   STRIPE_RESPONSES.RECORD_ID.eq(STRIPE_RESPONSES.RECORD_ID.getDataType().convert(dslContext.lastID())));
+                       }));
     }
 
     public StripeResponsesRecord updateResponse(final UUID kbPaymentTransactionId,
                                                 final PaymentIntent stripePaymentIntent,
+                                                @Nullable final Charge lastCharge,
                                                 final UUID kbTenantId) throws SQLException {
-        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent);
+        final Map<String, Object> additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentIntent, lastCharge);
         return updateResponse(kbPaymentTransactionId, additionalDataMap, kbTenantId);
     }
 
@@ -305,7 +319,7 @@ public class StripeDao extends PluginPaymentDao<StripeResponsesRecord, StripeRes
 
     public static Map fromAdditionalData(@Nullable final String additionalData) {
         if (additionalData == null) {
-            return ImmutableMap.of();
+            return Collections.emptyMap();
         }
 
         try {

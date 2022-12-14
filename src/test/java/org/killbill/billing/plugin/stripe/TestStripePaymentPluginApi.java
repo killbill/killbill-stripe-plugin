@@ -18,6 +18,8 @@
 package org.killbill.billing.plugin.stripe;
 
 import java.math.BigDecimal;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +29,6 @@ import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
-import org.asynchttpclient.BoundRequestBuilder;
 import org.joda.time.Period;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.catalog.api.Currency;
@@ -930,7 +931,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         amounts.add(32);
         amounts.add(45);
         params.put("amounts", amounts);
-        for (final PaymentSource source : customer.getSources().autoPagingIterable()) {
+        for (final PaymentSource source : customer.getSources().autoPagingIterable(params, options)) {
             if (source instanceof BankAccount) {
                 ((BankAccount) source).verify(params, options);
                 break;
@@ -965,7 +966,7 @@ public class TestStripePaymentPluginApi extends TestBase {
 
             final String body = "bank_account[account_number]=" + accountNumber + "&bank_account[country]=" + country + "&bank_account[currency]=" + currency + "&bank_account[routing_number]=" + routingNumber + "&bank_account[account_holder_name]=" + name + "&bank_account[account_holder_type]=" + type + "&key=" + stripePublishableKey;
 
-            final BoundRequestBuilder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).setBody(body);
+            final HttpRequest.Builder builder = getBuilderWithHeaderAndQuery(POST, url, ImmutableMap.<String, String>of(), ImmutableMap.<String, String>of()).method(POST, BodyPublishers.ofString(body));
             final Map response = executeAndWait(builder, DEFAULT_HTTP_TIMEOUT_SEC, Map.class, ResponseFormat.JSON);
 
             return (String) response.get("id");

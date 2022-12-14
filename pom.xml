@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2020-2021 Equinix, Inc
-  ~ Copyright 2014-2021 The Billing Project, LLC
+  ~ Copyright 2020-2022 Equinix, Inc
+  ~ Copyright 2014-2022 The Billing Project, LLC
   ~
   ~ The Billing Project licenses this file to you under the Apache License, version 2.0
   ~ (the "License"); you may not use this file except in compliance with the
@@ -20,11 +20,11 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.144.58</version>
+        <version>0.145.3-8ff3c94-SNAPSHOT</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
-    <version>7.3.4-SNAPSHOT</version>
+    <version>8.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>Kill Bill Stripe plugin</name>
     <description>Kill Bill Stripe plugin</description>
@@ -42,8 +42,19 @@
     <properties>
         <check.fail-spotbugs>true</check.fail-spotbugs>
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
+        <!-- This is just for wiremock -->
+        <jetty.version>9.4.46.v20220331</jetty.version>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.reactivestreams</groupId>
+                <artifactId>reactive-streams</artifactId>
+                <version>1.0.4</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -56,6 +67,21 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.xml.bind</groupId>
+                    <artifactId>jaxb-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
@@ -72,26 +98,21 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>20.33.0</version>
+            <version>21.15.0</version>
         </dependency>
         <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>testing-mysql-server</artifactId>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>testing-postgresql-server</artifactId>
-            <scope>test</scope>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
@@ -104,18 +125,19 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.asynchttpclient</groupId>
-            <artifactId>async-http-client</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <!-- 3.14.0 broke returning() on MySQL :( -->
-            <version>3.13.5</version>
+            <exclusions>
+                <exclusion>
+                    <!-- Pulls in 1.8.0-beta4 -->
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.kill-bill.billing</groupId>
@@ -174,6 +196,16 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-metrics-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kill-bill.testing</groupId>
+            <artifactId>testing-mysql-server</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
@@ -204,7 +236,7 @@
                         <exception>
                             <groupId>org.jooq</groupId>
                             <artifactId>jooq</artifactId>
-                            <expectedVersion>3.14.13</expectedVersion>
+                            <expectedVersion>3.15.10</expectedVersion>
                             <resolvedVersion>3.13.5</resolvedVersion>
                         </exception>
                     </exceptions>
