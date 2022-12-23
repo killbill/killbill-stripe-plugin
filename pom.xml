@@ -24,7 +24,7 @@
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
-    <version>8.0.0</version>
+    <version>8.0.1-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>Kill Bill Stripe plugin</name>
     <description>Kill Bill Stripe plugin</description>
@@ -32,7 +32,7 @@
     <scm>
         <connection>scm:git:git://github.com/killbill/killbill-stripe-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:killbill/killbill-stripe-plugin.git</developerConnection>
-        <tag>stripe-plugin-8.0.0</tag>
+        <tag>HEAD</tag>
         <url>http://github.com/killbill/killbill-stripe-plugin/tree/master</url>
     </scm>
     <issueManagement>
