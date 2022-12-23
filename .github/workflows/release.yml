@@ -19,6 +19,8 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    secrets:
+      extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
     steps:
       - name: Checkout code
         if: github.event.inputs.perform_version == ''
