@@ -44,6 +44,7 @@
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
         <!-- This is just for wiremock -->
         <jetty.version>9.4.46.v20220331</jetty.version>
+        <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
     </properties>
     <dependencyManagement>
