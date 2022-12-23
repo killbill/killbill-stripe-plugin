@@ -19,8 +19,6 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
-    secrets:
-      extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
     steps:
       - name: Checkout code
         if: github.event.inputs.perform_version == ''
@@ -80,6 +78,8 @@ jobs:
           OSSRH_USER: ${{ secrets.OSSRH_USER }}
           OSSRH_PASS: ${{ secrets.OSSRH_PASS }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          STRIPE_PUBLIC_KEY: ${{ secrets.STRIPE_PUBLIC_KEY }}
         # It will still check the remote but hopefully not download much (0 B at 0 B/s). -o isn't safe because of MDEP-82 (see above).
         run: |
           mvn ${MAVEN_FLAGS} release:clean release:prepare release:perform
