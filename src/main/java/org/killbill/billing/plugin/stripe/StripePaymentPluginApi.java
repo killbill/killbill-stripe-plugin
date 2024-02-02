@@ -887,7 +887,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
 
                                                  final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
                                                  paymentIntentParams.put("description", stripeConfigProperties.getChargeDescription());
-                                                 paymentIntentParams.put("statement_descriptor", stripeConfigProperties.getChargeStatementDescriptor());
+                                                 paymentIntentParams.put("statement_descriptor_suffix", stripeConfigProperties.getChargeStatementDescriptor());
 
                                                  logger.info("Creating Stripe PaymentIntent");
                                                  return PaymentIntent.create(paymentIntentParams, requestOptions);
