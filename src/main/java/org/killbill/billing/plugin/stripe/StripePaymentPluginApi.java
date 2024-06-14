@@ -883,6 +883,10 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                      // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
                                                      paymentMethodTypesBuilder.add("ach_debit");
                                                  }
+                                                 if (transactionType == TransactionType.PURCHASE && currency == Currency.CAD) {
+                                                     // See https://groups.google.com/g/killbilling-users/c/7nlIxYZd828/m/r82Tbnl7AAAJ
+                                                     paymentMethodTypesBuilder.add("acss_debit");
+                                                 }
                                                  paymentIntentParams.put("payment_method_types", paymentMethodTypesBuilder.build());
 
                                                  final StripeConfigProperties stripeConfigProperties = stripeConfigPropertiesConfigurationHandler.getConfigurable(context.getTenantId());
