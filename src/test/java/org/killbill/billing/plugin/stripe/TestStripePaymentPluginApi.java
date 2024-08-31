@@ -26,8 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.awaitility.Awaitility;
 import org.joda.time.Period;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.catalog.api.Currency;
@@ -537,11 +540,16 @@ public class TestStripePaymentPluginApi extends TestBase {
         // See getPending3DsPaymentExpirationPeriod
         clock.addDeltaFromReality(new Period("PT3H").toStandardDuration().getMillis());
 
-        final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginExpired = stripePaymentPluginApi.getPaymentInfo(account.getId(),
-                                                                                                                             payment.getId(),
-                                                                                                                             ImmutableList.of(),
-                                                                                                                             context);
-        assertEquals(paymentTransactionInfoPluginExpired.get(0).getStatus(), PaymentPluginStatus.CANCELED);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(new Callable<>() {
+            @Override
+            public Boolean call() throws Exception {
+                final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginExpired = stripePaymentPluginApi.getPaymentInfo(account.getId(),
+                                                                                                                                     payment.getId(),
+                                                                                                                                     ImmutableList.of(),
+                                                                                                                                     context);
+                return PaymentPluginStatus.CANCELED.equals(paymentTransactionInfoPluginExpired.get(0).getStatus());
+            }
+        });
     }
 
     @Test(groups = "integration")
