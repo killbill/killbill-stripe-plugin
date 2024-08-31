@@ -1,6 +1,6 @@
 /*
- * Copyright 2020-2020 Equinix, Inc
- * Copyright 2014-2020 The Billing Project, LLC
+ * Copyright 2020-2024 Equinix, Inc
+ * Copyright 2014-2024 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -26,9 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.awaitility.Awaitility;
 import org.joda.time.Period;
 import org.killbill.billing.ObjectType;
 import org.killbill.billing.catalog.api.Currency;
@@ -79,31 +81,8 @@ public class TestStripePaymentPluginApi extends TestBase {
 
     @Test(groups = "integration")
     public void testPaymentMethodAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
-        final UUID kbAccountId = account.getId();
-
-        assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
-
-        Map<String, Object> paymentMethodParams = new HashMap<>();
-        paymentMethodParams.put("type", "card");
-        paymentMethodParams.put("card", ImmutableMap.of("number", "4242424242424242", 
-                                                        "exp_month", "6", 
-                                                        "exp_year", "2030", 
-                                                        "cvc", "324"));
-        Map<String, Object> ownerParams = new HashMap<>();
-        ownerParams.put("name", "Autobahn");
-        ownerParams.put("email", "email@email.com");
-        paymentMethodParams.put("billing_details", ownerParams);
-
-        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
-        final PaymentMethod paymentMethod = PaymentMethod.create(paymentMethodParams, options);
-
-        final UUID kbPaymentMethodId = UUID.randomUUID();
-        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
-                                                kbPaymentMethodId,
-                                                new PluginPaymentMethodPlugin(kbPaymentMethodId, paymentMethod.getId(), false, ImmutableList.of()),
-                                                true,
-                                                null,
-                                                context);
+        createStripeCustomerWithCreditCardAndSyncPaymentMethod();
+        final UUID kbPaymentMethodId = paymentMethodPlugin.getKbPaymentMethodId();
 
         final Payment payment1 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, Currency.EUR, killbillApi);
         final PaymentTransaction purchaseTransaction1 = TestUtils.buildPaymentTransaction(payment1, TransactionType.PURCHASE, BigDecimal.TEN, payment1.getCurrency());
@@ -133,8 +112,8 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "integration")
-    public void testSEPADebitSourceAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
+    public void testLegacySEPADebitSourceAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
         assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
@@ -185,7 +164,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PENDING);
     }
 
-    @Test(groups = "integration")
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
     public void testLegacyTokensAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
@@ -237,7 +216,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "integration")
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
     public void testLegacyTokensAndChargesAPICustomerCreatedOutsideOfKillBill() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
@@ -561,11 +540,16 @@ public class TestStripePaymentPluginApi extends TestBase {
         // See getPending3DsPaymentExpirationPeriod
         clock.addDeltaFromReality(new Period("PT3H").toStandardDuration().getMillis());
 
-        final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginExpired = stripePaymentPluginApi.getPaymentInfo(account.getId(),
-                                                                                                                             payment.getId(),
-                                                                                                                             ImmutableList.of(),
-                                                                                                                             context);
-        assertEquals(paymentTransactionInfoPluginExpired.get(0).getStatus(), PaymentPluginStatus.CANCELED);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(new Callable<>() {
+            @Override
+            public Boolean call() throws Exception {
+                final List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginExpired = stripePaymentPluginApi.getPaymentInfo(account.getId(),
+                                                                                                                                     payment.getId(),
+                                                                                                                                     ImmutableList.of(),
+                                                                                                                                     context);
+                return PaymentPluginStatus.CANCELED.equals(paymentTransactionInfoPluginExpired.get(0).getStatus());
+            }
+        });
     }
 
     @Test(groups = "integration")
