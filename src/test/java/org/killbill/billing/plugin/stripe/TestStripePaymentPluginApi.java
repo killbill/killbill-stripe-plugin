@@ -133,8 +133,8 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "integration")
-    public void testSEPADebitSourceAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
+    public void testLegacySEPADebitSourceAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
         assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
@@ -185,7 +185,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PENDING);
     }
 
-    @Test(groups = "integration")
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
     public void testLegacyTokensAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
@@ -237,7 +237,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         verifyPaymentTransactionInfoPlugin(payment2, purchaseTransaction2, purchaseInfoPlugin2, PaymentPluginStatus.PROCESSED);
     }
 
-    @Test(groups = "integration")
+    @Test(groups = "integration", enabled = false, description = "Legacy API")
     public void testLegacyTokensAndChargesAPICustomerCreatedOutsideOfKillBill() throws PaymentPluginApiException, StripeException, PaymentApiException {
         final UUID kbAccountId = account.getId();
 
