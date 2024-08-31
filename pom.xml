@@ -202,6 +202,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-utils</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
             <groupId>org.kill-bill.testing</groupId>
             <artifactId>testing-mysql-server</artifactId>
             <scope>test</scope>
