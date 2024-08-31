@@ -1,6 +1,6 @@
 /*
- * Copyright 2020-2020 Equinix, Inc
- * Copyright 2014-2020 The Billing Project, LLC
+ * Copyright 2020-2024 Equinix, Inc
+ * Copyright 2014-2024 The Billing Project, LLC
  *
  * The Billing Project licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.joda.time.Period;
@@ -79,31 +78,8 @@ public class TestStripePaymentPluginApi extends TestBase {
 
     @Test(groups = "integration")
     public void testPaymentMethodAndChargesAPI() throws PaymentPluginApiException, StripeException, PaymentApiException {
-        final UUID kbAccountId = account.getId();
-
-        assertEquals(stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.<PluginProperty>of(), context).size(), 0);
-
-        Map<String, Object> paymentMethodParams = new HashMap<>();
-        paymentMethodParams.put("type", "card");
-        paymentMethodParams.put("card", ImmutableMap.of("number", "4242424242424242", 
-                                                        "exp_month", "6", 
-                                                        "exp_year", "2030", 
-                                                        "cvc", "324"));
-        Map<String, Object> ownerParams = new HashMap<>();
-        ownerParams.put("name", "Autobahn");
-        ownerParams.put("email", "email@email.com");
-        paymentMethodParams.put("billing_details", ownerParams);
-
-        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
-        final PaymentMethod paymentMethod = PaymentMethod.create(paymentMethodParams, options);
-
-        final UUID kbPaymentMethodId = UUID.randomUUID();
-        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
-                                                kbPaymentMethodId,
-                                                new PluginPaymentMethodPlugin(kbPaymentMethodId, paymentMethod.getId(), false, ImmutableList.of()),
-                                                true,
-                                                null,
-                                                context);
+        createStripeCustomerWithCreditCardAndSyncPaymentMethod();
+        final UUID kbPaymentMethodId = paymentMethodPlugin.getKbPaymentMethodId();
 
         final Payment payment1 = TestUtils.buildPayment(account.getId(), kbPaymentMethodId, Currency.EUR, killbillApi);
         final PaymentTransaction purchaseTransaction1 = TestUtils.buildPaymentTransaction(payment1, TransactionType.PURCHASE, BigDecimal.TEN, payment1.getCurrency());
