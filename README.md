@@ -96,6 +96,8 @@ to `http://127.0.0.1:8080/plugins/killbill-stripe/checkout?kbAccountId=<KB_ACCOU
 ```javascript
 stripe.redirectToCheckout({ sessionId: 'cs_test_XXX' });
 ```
+**_NOTE:_** Adding payment information, such as credit card details, is unsafe, not recommended, and disabled by default in Stripe API. Therefore, adding a credit card directly via Kaui or the Stripe API is not possible. Instead, use the secure checkout process by creating a session with `mode=setup` see [Link](https://docs.stripe.com/api/checkout/sessions/create) for more details.
+
 4. After entering the credit card or bank account details, the payment method will be available in Stripe. Call `addPaymentMethod` to store the payment method in Kill Bill:
 ```bash
 curl -v \
@@ -111,6 +113,8 @@ curl -v \
      -d "{ \"pluginName\": \"killbill-stripe\"}" \
      "http://127.0.0.1:8080/1.0/kb/accounts/<KB_ACCOUNT_ID>/paymentMethods?pluginProperty=sessionId=cs_test_XXX"
 ```
+
+**_NOTE:_** If you encounter issues with step 4, try to refresh the PaymentMethods in Kaui or API (/1.0/kb/accounts/{accountId}/paymentMethods/refresh). This will load the added PaymentMethods from Stripe.
 
 ### Using tokens and sources
 
@@ -152,7 +156,7 @@ curl -v \
 
 Take a look at [kbcmd](https://github.com/killbill/kbcli/blob/master/docs/kbcmd/kbcmd-walkthrough.md) for a step-by-step walkthrough.
 
-Note: if the token/source is already attached to a customer in Stripe, make sure to first set the `STRIPE_CUSTOMER_ID` custom field to the account in Kill Bill (see below) before calling `addPaymentMethod` (in this case, the token will be stored as-is and assumed to be re-usable if you intent to do subsequent payments). Otherwise, the plugin assumes it is a one-time token and will automatically create an associated customer in Stripe attached to this token/source to be able to re-use it (if needed, you can bypass this logic by specifying the `createStripeCustomer=false` plugin property in the `addPaymentMethod` call).
+**_NOTE:_** If the token/source is already attached to a customer in Stripe, make sure to first set the `STRIPE_CUSTOMER_ID` custom field to the account in Kill Bill (see below) before calling `addPaymentMethod` (in this case, the token will be stored as-is and assumed to be re-usable if you intent to do subsequent payments). Otherwise, the plugin assumes it is a one-time token and will automatically create an associated customer in Stripe attached to this token/source to be able to re-use it (if needed, you can bypass this logic by specifying the `createStripeCustomer=false` plugin property in the `addPaymentMethod` call).
 
 ### Other methods
 
