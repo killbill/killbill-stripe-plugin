@@ -101,6 +101,19 @@ public abstract class StripePluginProperties {
                 additionalDataMap.put("sepa_debit_mandate_reference", sepaDebit.getMandateReference());
                 additionalDataMap.put("sepa_debit_mandate_url", sepaDebit.getMandateUrl());
             }
+            final Source.AcssDebit acssDebit = stripeSource.getAcssDebit();
+            if (acssDebit != null) {
+                additionalDataMap.put("acss_debit_bank_address_city", acssDebit.getBankAddressCity());
+                additionalDataMap.put("acss_debit_bank_address_line_1", acssDebit.getBankAddressLine1());
+                additionalDataMap.put("acss_debit_bank_address_line_2", acssDebit.getBankAddressLine2());
+                additionalDataMap.put("acss_debit_bank_address_postal_code", acssDebit.getBankAddressPostalCode());
+                additionalDataMap.put("acss_debit_bank_name", acssDebit.getBankName());
+                additionalDataMap.put("acss_debit_category", acssDebit.getCategory());
+                additionalDataMap.put("acss_debit_country", acssDebit.getCountry());
+                additionalDataMap.put("acss_debit_fingerprint", acssDebit.getFingerprint());
+                additionalDataMap.put("acss_debit_last4", acssDebit.getLast4());
+                additionalDataMap.put("acss_debit_routing_number", acssDebit.getRoutingNumber());
+            }
             additionalDataMap.put("created", stripeSource.getCreated());
             additionalDataMap.put("customer_id", stripeSource.getCustomer());
             additionalDataMap.put("id", stripeSource.getId());
