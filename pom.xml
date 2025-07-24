@@ -20,11 +20,11 @@
     <parent>
         <groupId>org.kill-bill.billing</groupId>
         <artifactId>killbill-oss-parent</artifactId>
-        <version>0.146.35</version>
+        <version>0.146.63</version>
     </parent>
     <groupId>org.kill-bill.billing.plugin.java</groupId>
     <artifactId>stripe-plugin</artifactId>
-    <version>8.0.3-SNAPSHOT</version>
+    <version>8.0.4-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>Kill Bill Stripe plugin</name>
     <description>Kill Bill Stripe plugin</description>
