@@ -77,8 +77,8 @@ public class StripeConfigProperties {
 
     public StripeConfigProperties(final Properties properties, final String region) {
         this.region = region;
-        this.apiKey = properties.getProperty(PROPERTY_PREFIX + "apiKey");
-        this.publicKey = properties.getProperty(PROPERTY_PREFIX + "publicKey");
+        this.apiKey = StripeConfigPropertyResolver.resolve(properties.getProperty(PROPERTY_PREFIX + "apiKey"));
+        this.publicKey = StripeConfigPropertyResolver.resolve(properties.getProperty(PROPERTY_PREFIX + "publicKey"));
         this.apiBase = properties.getProperty(PROPERTY_PREFIX + "apiBase");
         this.proxyHost = properties.getProperty(PROPERTY_PREFIX + "proxyHost");
         this.proxyPort = Integer.parseInt(properties.getProperty(PROPERTY_PREFIX + "proxyPort", "-1"));
