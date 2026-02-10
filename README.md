@@ -63,6 +63,47 @@ org.killbill.billing.plugin.stripe.chargeStatementDescriptor=ZZZ' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
+## Securing API Keys
+
+By default, API keys are stored in plaintext in Kill Bill's tenant configuration. You can secure them using environment variable references or encrypted values.
+
+### Environment variable references (recommended for K8s/Docker)
+
+Store your Stripe keys in environment variables and reference them in the plugin config:
+
+```
+org.killbill.billing.plugin.stripe.apiKey=${env:STRIPE_API_KEY}
+org.killbill.billing.plugin.stripe.publicKey=${env:STRIPE_PUBLIC_KEY}
+```
+
+This way, secrets never enter the database and can be managed by your orchestration layer (K8s Secrets, HashiCorp Vault, AWS SSM, etc.).
+
+### Encrypted values (for multi-tenant DB storage)
+
+For multi-tenant setups where per-tenant environment variables are impractical, you can store AES-256-GCM encrypted values using the `ENC()` wrapper (consistent with Kill Bill core's convention):
+
+1. Generate a 256-bit encryption key:
+   ```bash
+   openssl rand -base64 32
+   ```
+
+2. Make the key available to the JVM via environment variable or system property:
+   ```bash
+   export KILLBILL_STRIPE_ENCRYPTION_KEY=<base64-key-from-step-1>
+   ```
+   Or as a system property: `-Dorg.killbill.billing.plugin.stripe.encryptionKey=<base64-key>`
+
+3. Encrypt your API key using the `StripeConfigPropertyResolver.encrypt()` utility and wrap it:
+   ```
+   org.killbill.billing.plugin.stripe.apiKey=ENC(<base64-encrypted-value>)
+   ```
+
+Each tenant can have a different encrypted value while sharing the same JVM-level encryption key.
+
+### Migration note
+
+Existing plaintext configurations continue to work with zero changes. Encryption is fully opt-in.
+
 ## Payment Method flow
 
 To charge a payment instrument (card, bank account, etc.), you first need to collect the payment instrument details in Stripe and create an associated payment method in Kill Bill.
