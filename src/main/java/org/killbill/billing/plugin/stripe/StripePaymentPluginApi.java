@@ -870,7 +870,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                      if ("payment_method".equals(objectType)) {
                                                          paymentIntentParams.put(objectType, paymentMethodsRecord.getStripeId());
                                                      } else {
-                                                         paymentIntentParams.put("source", paymentMethodsRecord.getStripeId());
+                                                         paymentIntentParams.put("payment_method", paymentMethodsRecord.getStripeId());
                                                      }
                                                  }
 
@@ -881,7 +881,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                                  }
                                                  if (transactionType == TransactionType.PURCHASE && currency == Currency.USD) {
                                                      // See https://groups.google.com/forum/?#!msg/killbilling-users/li3RNs-YmIA/oaUrBElMFQAJ
-                                                     paymentMethodTypesBuilder.add("ach_debit");
+                                                     paymentMethodTypesBuilder.add("us_bank_account");
                                                  }
                                                  paymentIntentParams.put("payment_method_types", paymentMethodTypesBuilder.build());
 

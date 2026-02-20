@@ -871,7 +871,7 @@ public class TestStripePaymentPluginApi extends TestBase {
         final List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, true, ImmutableList.<PluginProperty>of(), context);
 
         for (final PaymentMethodInfoPlugin paymentMethodInfoPlugin : paymentMethods) {
-            if (paymentMethodInfoPlugin.getExternalPaymentMethodId().startsWith("ba_")) {
+            if (paymentMethodInfoPlugin.getExternalPaymentMethodId().startsWith("pm_")) {
                 // It's the bank account
                 paymentMethodPlugin = stripePaymentPluginApi.getPaymentMethodDetail(kbAccountId,
                                                                                     paymentMethodInfoPlugin.getPaymentMethodId(),
