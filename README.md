@@ -63,6 +63,35 @@ org.killbill.billing.plugin.stripe.chargeStatementDescriptor=ZZZ' \
      http://127.0.0.1:8080/1.0/kb/tenants/uploadPluginConfig/killbill-stripe
 ```
 
+## Securing API Keys
+
+By default, API keys are stored in plaintext in Kill Bill's tenant configuration. You can keep secrets out of the database by using environment variable references.
+
+### Environment variable references
+
+Store your Stripe keys in environment variables and reference them in the plugin config:
+
+```
+org.killbill.billing.plugin.stripe.apiKey=${env:STRIPE_API_KEY}
+org.killbill.billing.plugin.stripe.publicKey=${env:STRIPE_PUBLIC_KEY}
+```
+
+This way, secrets never enter the database and can be managed by your orchestration layer (K8s Secrets, HashiCorp Vault, AWS SSM, etc.).
+
+For multi-tenant setups, each tenant can reference a different environment variable:
+
+```
+# Tenant A config
+org.killbill.billing.plugin.stripe.apiKey=${env:STRIPE_KEY_TENANT_A}
+
+# Tenant B config
+org.killbill.billing.plugin.stripe.apiKey=${env:STRIPE_KEY_TENANT_B}
+```
+
+### Migration note
+
+Existing plaintext configurations continue to work with zero changes. Environment variable references are fully opt-in.
+
 ## Payment Method flow
 
 To charge a payment instrument (card, bank account, etc.), you first need to collect the payment instrument details in Stripe and create an associated payment method in Kill Bill.
