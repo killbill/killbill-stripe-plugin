@@ -65,14 +65,16 @@ public class StripeCheckoutServlet extends PluginHealthcheck {
                                 @Named("cancelUrl") final Optional<String> cancelUrl,
                                 @Named("kbInvoiceId") final Optional<String> kbInvoiceId,
                                 @Named("paymentMethodTypes") final Optional<List<String>> paymentMethodTypes,
-                                @Local @Named("killbill_tenant") final Tenant tenant) throws JsonProcessingException, PaymentPluginApiException {
+                                @Local @Named("killbill_tenant") final Tenant tenant,
+                                @Named("billingAddressCollection") final Optional<String> billingAddressCollection) throws JsonProcessingException, PaymentPluginApiException {
         final CallContext context = new PluginCallContext(StripeActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());
         final ImmutableList<PluginProperty> customFields = ImmutableList.of(
                 new PluginProperty("kb_account_id", kbAccountId.toString(), false),
                 new PluginProperty("kb_invoice_id", kbInvoiceId.orElse(null), false),
                 new PluginProperty("success_url", successUrl.orElse("https://example.com/success?sessionId={CHECKOUT_SESSION_ID}"), false),
                 new PluginProperty("cancel_url", cancelUrl.orElse("https://example.com/cancel"), false),
-                new PluginProperty("payment_method_types", paymentMethodTypes.orElse(null), false));
+                new PluginProperty("payment_method_types", paymentMethodTypes.orElse(null), false),
+                new PluginProperty("billing_address_collection", billingAddressCollection.orElse("auto"), false));
         final HostedPaymentPageFormDescriptor hostedPaymentPageFormDescriptor = stripePaymentPluginApi.buildFormDescriptor(kbAccountId,
                                                                                                                            customFields,
                                                                                                                            ImmutableList.of(),
