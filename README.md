@@ -27,7 +27,21 @@ A full end-to-end integration demo is available [here](https://github.com/killbi
 
 ## Requirements
 
-The plugin needs a database. The latest version of the schema can be found [here](https://github.com/killbill/killbill-stripe-plugin/blob/master/src/main/resources/ddl.sql).
+* An active Stripe account is required to use the plugin. A Stripe test account may be used for testing purposes.
+* The plugin needs a database. The database tables are automatically created and updated at plugin startup when the `org.killbill.billing.plugin.stripe.runMigrations` property is set to `true`. Alternatively, if you would like to manage the database schema manually, you can use the SQL scripts provided in the [src/main/resources/migration](https://github.com/killbill/killbill-stripe-plugin/tree/master/src/main/resources/migration) directory to create or update the database tables as needed. See the [Database Setup](#database-setup) section below for details.
+
+## Database Setup
+
+The Avatax plugin requires a database. By default, schema migrations run automatically at plugin startup.
+
+To skip automatic migrations (for example, if you prefer to manage the database schema manually), ensure that the following property is set before starting the plugin the first time:
+
+```properties
+org.killbill.billing.plugin.stripe.runMigrations=false
+```
+
+
+When automatic migrations are disabled, ensure that the required database tables are created manually using the SQL scripts provided in the [src/main/resources/migration](src/main/resources/migration) directory.
 
 ## Installation
 

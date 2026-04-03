@@ -58,6 +58,7 @@ public class StripeConfigProperties {
     private static final String KEY_VALUE_DELIMITER = "#";
     private static final String DEFAULT_CONNECTION_TIMEOUT = "30000";
     private static final String DEFAULT_READ_TIMEOUT = "60000";
+    private static final String DEFAULT_RUN_MIGRATIONS = "true";
 
     private final String region;
     private final String apiKey;
@@ -236,5 +237,9 @@ public class StripeConfigProperties {
                 }
             }
         }
+    }
+
+    public static boolean shouldRunMigrations(final Properties properties) {
+        return Boolean.parseBoolean(properties.getProperty(PROPERTY_PREFIX + "runMigrations", DEFAULT_RUN_MIGRATIONS));
     }
 }
