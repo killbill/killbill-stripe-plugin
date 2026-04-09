@@ -133,9 +133,14 @@ public class TestBase {
         stripeConfigPropertiesConfigurationHandler.setDefaultConfigurable(stripeConfigProperties);
     }
 
-    @BeforeSuite(groups = {"slow", "integration"})
+    @BeforeSuite(groups = "slow")
     public void setUpBeforeSuite() throws Exception {
         EmbeddedDbHelper.instance().startDb();
+    }
+
+    @BeforeSuite(groups = "integration")
+    public void setUpBeforeSuiteIntegration() throws Exception {
+        EmbeddedDbHelper.instance().startDb(false);
     }
 
     @AfterSuite(groups = {"slow", "integration"})

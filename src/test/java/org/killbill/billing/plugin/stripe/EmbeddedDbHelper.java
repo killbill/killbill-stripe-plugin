@@ -38,22 +38,28 @@ public class EmbeddedDbHelper {
     }
 
     public void startDb() throws Exception {
+        startDb(true);
+    }
+
+    public void startDb(final boolean withDDL) throws Exception {
         System.setProperty("org.jooq.no-logo", "true");
 
         embeddedDB = PlatformDBTestingHelper.get().getInstance();
         embeddedDB.initialize();
         embeddedDB.start();
 
-        final String databaseSpecificDDL = "ddl-" + embeddedDB.getDBEngine().name().toLowerCase() + ".sql";
-        try {
-            embeddedDB.executeScript(TestUtils.toString(databaseSpecificDDL));
-        } catch (final IllegalArgumentException e) {
-            // Ignore, no engine specific DDL
-        }
+        if (withDDL) {
+            final String databaseSpecificDDL = "ddl-" + embeddedDB.getDBEngine().name().toLowerCase() + ".sql";
+            try {
+                embeddedDB.executeScript(TestUtils.toString(databaseSpecificDDL));
+            } catch (final IllegalArgumentException e) {
+                // Ignore, no engine specific DDL
+            }
 
-        final String ddl = TestUtils.toString(DDL_FILE_NAME);
-        embeddedDB.executeScript(ddl);
-        embeddedDB.refreshTableNames();
+            final String ddl = TestUtils.toString(DDL_FILE_NAME);
+            embeddedDB.executeScript(ddl);
+            embeddedDB.refreshTableNames();
+        }
     }
 
     public StripeDao getStripeDao() throws IOException, SQLException {
