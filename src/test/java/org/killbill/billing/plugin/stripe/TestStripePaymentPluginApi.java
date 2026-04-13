@@ -317,6 +317,46 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                                             context);
         assertEquals(((Map) PluginProperties.toMap(paymentMethodDetail.getProperties()).get("metadata")).get("testing"), metadata.get("testing"));
     }
+    
+    @Test(groups = "integration")
+    public void testAddSecondPaymentMethodToExistingCustomer() throws PaymentPluginApiException, StripeException {
+        final UUID kbAccountId = account.getId();
+
+        // 1. Create the customer and the first payment method (This sets existingCustomerId)
+        createStripeCustomerWithCreditCardAndSyncPaymentMethod();
+        final String existingStripeCustomerId = customer.getId();
+
+        // Verify we start with exactly 1 payment method
+        List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 1);
+
+        // 2. Create a SECOND payment method in Stripe (e.g., a Mastercard)
+        // At this point, it is just a floating payment method not attached to any customer
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        Map<String, Object> pmParams = new HashMap<>();
+        pmParams.put("type", "card");
+        pmParams.put("card", ImmutableMap.of("token", "tok_mastercard")); // Stripe testing token
+        PaymentMethod secondStripePaymentMethod = PaymentMethod.create(pmParams, options);
+
+        // 3. Add the second payment method to the existing Kill Bill account
+        // It should detect the existing customer and call .attach()
+        final UUID secondKbPaymentMethodId = UUID.randomUUID();
+        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
+                                                secondKbPaymentMethodId,
+                                                new PluginPaymentMethodPlugin(secondKbPaymentMethodId, secondStripePaymentMethod.getId(), false, ImmutableList.of()),
+                                                false,
+                                                ImmutableList.of(),
+                                                context);
+
+        // 4. Reach out to Stripe and ensure the attachment actually happened
+        PaymentMethod retrievedSecondPm = PaymentMethod.retrieve(secondStripePaymentMethod.getId(), options);
+        assertNotNull(retrievedSecondPm.getCustomer(), "The Stripe PaymentMethod was not attached to a customer!");
+        assertEquals(retrievedSecondPm.getCustomer(), existingStripeCustomerId, "The second payment method should be attached to the ORIGINAL Stripe customer ID!");
+
+        // 5. Verify local Kill Bill database now correctly reflects 2 payment methods
+        paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
+    }
 
     @Test(groups = "integration")
     public void testDeletePaymentMethod() throws PaymentPluginApiException, StripeException {
