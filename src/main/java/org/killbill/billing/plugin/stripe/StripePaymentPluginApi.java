@@ -365,7 +365,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         customerId = createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                         stripeId = retrievePaymentMethod(customerId, null, getTokenInnerId(stripeToken), requestOptions);
                     } else {
-                        Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
+                    	Customer customer = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions);
                         ImmutableMap<String, Object> attachParams = ImmutableMap.of("source", stripeToken.getId());
                         // Capture the newly created source directly from Stripe
                         PaymentSource attachedSource = customer.getSources().create(attachParams, requestOptions);
@@ -386,7 +386,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                         sourceForAdditionalData = stripeSource;
                     } else {
-                        Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
+                    	Customer customer = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions);
                         ImmutableMap<String, Object> attachParams = ImmutableMap.of("source", stripeSource.getId());
                         // Capture the returned, attached PaymentSource
                         sourceForAdditionalData = customer.getSources().create(attachParams, requestOptions);
