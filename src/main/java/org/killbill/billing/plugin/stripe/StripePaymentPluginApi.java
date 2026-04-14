@@ -342,7 +342,6 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                 try {
                     final PaymentMethod stripePaymentMethod = PaymentMethod.retrieve(paymentMethodIdInStripe, requestOptions);
                     final PaymentMethod paymentMethodForAdditionalData;
-                    additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentMethod);                    
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("payment_method", stripePaymentMethod.getId());
                         createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
