@@ -357,6 +357,85 @@ public class TestStripePaymentPluginApi extends TestBase {
         paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
         assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
     }
+    
+    @Test(groups = "integration")
+    public void testAddSecondTokenToExistingCustomer() throws PaymentPluginApiException, StripeException {
+        final UUID kbAccountId = account.getId();
+
+        // 1. Create the customer and the first payment method (This sets existingCustomerId)
+        createStripeCustomerWithCreditCardAndSyncPaymentMethod();
+        final String existingStripeCustomerId = customer.getId();
+
+        // Verify we start with exactly 1 payment method
+        List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 1);
+
+        // 2. Create a raw Token in Stripe (simulating a legacy stripe.js token generation)
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        final Map<String, Object> cardParams = new HashMap<>();
+        cardParams.put("number", "4242424242424242");
+        cardParams.put("exp_month", 12);
+        cardParams.put("exp_year", 2030);
+        cardParams.put("cvc", "123");
+        final Map<String, Object> tokenParams = new HashMap<>();
+        tokenParams.put("card", cardParams);
+        final Token stripeToken = Token.create(tokenParams, options);
+
+        // 3. Add the token to the existing Kill Bill account        
+        final UUID secondKbPaymentMethodId = UUID.randomUUID();
+        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
+                                                secondKbPaymentMethodId,
+                                                new PluginPaymentMethodPlugin(secondKbPaymentMethodId, null, false, ImmutableList.of()),
+                                                false,
+                                                ImmutableList.of(new PluginProperty("token", stripeToken.getId(), false)),
+                                                context);
+
+        // 4. Verify local Kill Bill database now correctly reflects 2 payment methods
+        paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
+
+        // 5. VERIFY THE FIX IN STRIPE: Ensure the token was consumed and attached as a source
+        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, options);
+        assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
+    }
+    
+    @Test(groups = "integration")
+    public void testAddSecondSourceToExistingCustomer() throws PaymentPluginApiException, StripeException {
+        final UUID kbAccountId = account.getId();
+
+        // 1. Create the customer and the first payment method (This sets existingCustomerId)
+        createStripeCustomerWithCreditCardAndSyncPaymentMethod();
+        final String existingStripeCustomerId = customer.getId();
+
+        // Verify we start with exactly 1 payment method
+        List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 1);
+
+        // 2. Create a raw Source object directly in Stripe (e.g., using an Amex test token)
+        final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
+        Map<String, Object> sourceParams = new HashMap<>();
+        sourceParams.put("type", "card");
+        sourceParams.put("token", "tok_amex"); 
+        Source stripeSource = Source.create(sourceParams, options);
+
+        // 3. Add the Source to the existing Kill Bill account
+        // THIS EXERCISES OUR FIX IN THE "source" BLOCK!
+        final UUID secondKbPaymentMethodId = UUID.randomUUID();
+        stripePaymentPluginApi.addPaymentMethod(kbAccountId,
+                                                secondKbPaymentMethodId,
+                                                new PluginPaymentMethodPlugin(secondKbPaymentMethodId, null, false, ImmutableList.of()),
+                                                false,
+                                                ImmutableList.of(new PluginProperty("source", stripeSource.getId(), false)),
+                                                context);
+
+        // 4. Verify local Kill Bill database now correctly reflects 2 payment methods
+        paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
+
+        // 5. VERIFY THE FIX IN STRIPE: Ensure the source was physically attached to the customer
+        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, options);
+        assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
+    }
 
     @Test(groups = "integration")
     public void testDeletePaymentMethod() throws PaymentPluginApiException, StripeException {
