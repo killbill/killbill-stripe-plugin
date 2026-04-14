@@ -359,9 +359,8 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
             } else if ("token".equals(objectType)) {
                 try {
                     final Token stripeToken = Token.retrieve(paymentMethodIdInStripe, requestOptions);
-                    additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);
+                    additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);                    
                     
-                    String customerId;
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeToken.getId());
                         customerId = createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
