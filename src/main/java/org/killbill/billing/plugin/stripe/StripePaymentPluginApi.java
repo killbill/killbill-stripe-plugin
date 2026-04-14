@@ -344,7 +344,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripePaymentMethod);                    
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("payment_method", stripePaymentMethod.getId());
-                        createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
+                        createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                     } else {
                         ImmutableMap<String, Object> attachParams = ImmutableMap.of("customer", existingCustomerId);
                         stripePaymentMethod.attach(attachParams, requestOptions);
@@ -359,7 +359,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeToken);                    
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeToken.getId());
-                        customerId = createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
+                        customerId = createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                     } else {
                         Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
                         ImmutableMap<String, Object> attachParams = ImmutableMap.of("source", stripeToken.getId());
@@ -377,7 +377,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     additionalDataMap = StripePluginProperties.toAdditionalDataMap(stripeSource);
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeSource.getId());
-                        createStripeCustomer(kbAccountId, existingCustomerId, params, requestOptions, allProperties, context);
+                        createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                     } else {
                         Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
                         ImmutableMap<String, Object> attachParams = ImmutableMap.of("source", stripeSource.getId());
