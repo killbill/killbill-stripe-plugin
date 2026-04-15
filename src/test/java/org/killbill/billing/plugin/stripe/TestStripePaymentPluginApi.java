@@ -403,7 +403,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         final List<PaymentMethodInfoPlugin> finalPaymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
         final String secondMethodStripeId = finalPaymentMethods.stream()
                 .filter(pm -> !pm.getPaymentMethodId().equals(initialPaymentMethods.get(0).getPaymentMethodId()))
-                .findFirst().get().getExternalPaymentMethodId();
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected a second payment method in Kill Bill but none was found"))
+                .getExternalPaymentMethodId();
         assertEquals(retrievedCustomer.getSources().getData().get(0).getId(), secondMethodStripeId, "The card in Stripe sources should match the ID saved in Kill Bill.");
     }
     
