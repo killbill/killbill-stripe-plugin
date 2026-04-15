@@ -367,8 +367,8 @@ public class TestStripePaymentPluginApi extends TestBase {
         final String existingStripeCustomerId = customer.getId();
 
         // Verify we start with exactly 1 payment method
-        List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
-        assertEquals(paymentMethods.size(), 1);
+        List<PaymentMethodInfoPlugin> initialPaymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        assertEquals(initialPaymentMethods.size(), 1);
 
         // 2. Create a raw Token in Stripe (simulating a legacy stripe.js token generation)
         final RequestOptions options = stripePaymentPluginApi.buildRequestOptions(context);
@@ -391,14 +391,20 @@ public class TestStripePaymentPluginApi extends TestBase {
                                                 context);
 
         // 4. Verify local Kill Bill database now correctly reflects 2 payment methods
-        paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        List<PaymentMethodInfoPlugin> paymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
         assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
 
         // 5. VERIFY THE FIX IN STRIPE: Ensure the token was consumed and attached as a source
         final Map<String, Object> expandParams = new HashMap<>();
         expandParams.put("expand", ImmutableList.of("sources"));
         Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, expandParams, options);
-        assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
+        assertEquals(retrievedCustomer.getSources().getData().size(), 1, "The new card from the token should be present in the Stripe Customer's sources list.");
+        // Verify the card ID saved in Kill Bill matches what's in Stripe's sources
+        final List<PaymentMethodInfoPlugin> finalPaymentMethods = stripePaymentPluginApi.getPaymentMethods(kbAccountId, false, ImmutableList.of(), context);
+        final String secondMethodStripeId = finalPaymentMethods.stream()
+                .filter(pm -> !pm.getPaymentMethodId().equals(initialPaymentMethods.get(0).getPaymentMethodId()))
+                .findFirst().get().getExternalPaymentMethodId();
+        assertEquals(retrievedCustomer.getSources().getData().get(0).getId(), secondMethodStripeId, "The card in Stripe sources should match the ID saved in Kill Bill.");
     }
     
     @Test(groups = "integration")
@@ -438,7 +444,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         final Map<String, Object> expandParams = new HashMap<>();
         expandParams.put("expand", ImmutableList.of("sources"));
         Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, expandParams, options);
-        assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
+        assertEquals(retrievedCustomer.getSources().getData().size(), 1, "The new source should be present in the Stripe Customer's sources list.");
+     // Also verify it's specifically the source we attached, not just any source
+        assertEquals(retrievedCustomer.getSources().getData().get(0).getId(), stripeSource.getId(), "The attached source ID should match the one we passed in.");
     }
 
     @Test(groups = "integration")
