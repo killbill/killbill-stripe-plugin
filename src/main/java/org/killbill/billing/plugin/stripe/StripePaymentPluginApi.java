@@ -372,8 +372,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         // no need for an extra Customer.retrieve() round-trip
                         stripeId = updatedCustomer.getDefaultSource() != null
                                 ? updatedCustomer.getDefaultSource()
-                                : getTokenInnerId(stripeToken);
-                        customerId = existingCustomerId;
+                                : getTokenInnerId(stripeToken);                        
                     }                    
                 }  catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
