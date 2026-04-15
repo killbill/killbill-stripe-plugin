@@ -395,7 +395,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
 
         // 5. VERIFY THE FIX IN STRIPE: Ensure the token was consumed and attached as a source
-        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, options);
+        final Map<String, Object> expandParams = new HashMap<>();
+        expandParams.put("expand", ImmutableList.of("sources"));
+        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, expandParams, options);
         assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
     }
     
@@ -433,7 +435,9 @@ public class TestStripePaymentPluginApi extends TestBase {
         assertEquals(paymentMethods.size(), 2, "Kill Bill should have exactly 2 payment methods saved locally.");
 
         // 5. VERIFY THE FIX IN STRIPE: Ensure the source was physically attached to the customer
-        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, options);
+        final Map<String, Object> expandParams = new HashMap<>();
+        expandParams.put("expand", ImmutableList.of("sources"));
+        Customer retrievedCustomer = Customer.retrieve(existingStripeCustomerId, expandParams, options);
         assertEquals(retrievedCustomer.getSources().getData().size(), 2, "The Stripe Customer should have exactly 2 sources attached on the backend!");
     }
 
