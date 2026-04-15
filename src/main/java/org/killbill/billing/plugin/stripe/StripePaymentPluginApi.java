@@ -363,6 +363,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                     if (existingCustomerId == null) {
                         ImmutableMap<String, Object> params = ImmutableMap.of("source", stripeToken.getId());
                         customerId = createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
+                        stripeId = retrievePaymentMethod(customerId, null, getTokenInnerId(stripeToken), requestOptions);
                     } else {
                         Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
                         ImmutableMap<String, Object> updateParams = ImmutableMap.of("source", stripeToken.getId());
@@ -373,11 +374,7 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                                 ? updatedCustomer.getDefaultSource()
                                 : getTokenInnerId(stripeToken);
                         customerId = existingCustomerId;
-                    }
-                    // stripeId is now assigned inside the else branch above, so only call this for the new-customer path
-                    if (existingCustomerId == null) {
-                        stripeId = retrievePaymentMethod(customerId, null, getTokenInnerId(stripeToken), requestOptions);
-                    } 
+                    }                    
                 }  catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
