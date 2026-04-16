@@ -365,16 +365,19 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         customerId = createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                         stripeId = retrievePaymentMethod(customerId, null, getTokenInnerId(stripeToken), requestOptions);
                     } else {
-                        Customer customer = Customer.retrieve(existingCustomerId, requestOptions);
-                        ImmutableMap<String, Object> updateParams = ImmutableMap.of("source", stripeToken.getId());
-                        final Customer updatedCustomer = customer.update(updateParams, requestOptions);
-                        // Use the update response directly — defaultSource is already populated,
-                        // no need for an extra Customer.retrieve() round-trip
-                        stripeId = updatedCustomer.getDefaultSource() != null
-                                ? updatedCustomer.getDefaultSource()
-                                : getTokenInnerId(stripeToken);                        
-                    }                    
-                }  catch (final StripeException e) {
+                        final Customer customer = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions);
+                        final Map<String, Object> attachParams = new HashMap<>();
+                        attachParams.put("source", stripeToken.getId());
+                        final PaymentSource attachedSource = customer.getSources().create(attachParams, requestOptions);
+                        stripeId = attachedSource.getId();
+
+                        if (setDefault) {
+                            final Map<String, Object> defaultParams = new HashMap<>();
+                            defaultParams.put("default_source", stripeId);
+                            customer.update(defaultParams, requestOptions);
+                        }
+                      } 
+                    }  catch (final StripeException e) {
                     throw new PaymentPluginApiException("Error calling Stripe while adding payment method", e);
                 }
             } else if ("source".equals(objectType)) {
@@ -387,12 +390,9 @@ public class StripePaymentPluginApi extends PluginPaymentPluginApi<StripeRespons
                         createStripeCustomer(kbAccountId, null, params, requestOptions, allProperties, context);
                         sourceForAdditionalData = stripeSource;
                     } else {
-                    	// Retrieve the instance first, then call the instance .update() method
-                    	final Map<String, Object> expandParams = new HashMap<>();
-                        expandParams.put("expand", ImmutableList.of("sources"));                        
-                        final Customer customer = Customer.retrieve(existingCustomerId, expandParams, requestOptions);
+                        final Customer customer = Customer.retrieve(existingCustomerId, expandSourcesParams, requestOptions);
                         final Map<String, Object> attachParams = new HashMap<>();
-                        attachParams.put("source", stripeSource.getId());                        
+                        attachParams.put("source", stripeSource.getId());
                         sourceForAdditionalData = customer.getSources().create(attachParams, requestOptions);
                     }
                     
