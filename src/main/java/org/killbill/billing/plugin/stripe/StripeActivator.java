@@ -19,8 +19,8 @@ package org.killbill.billing.plugin.stripe;
 
 import java.util.Hashtable;
 
-import javax.servlet.Servlet;
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.http.HttpServlet;
 
 import org.killbill.billing.osgi.api.Healthcheck;
 import org.killbill.billing.osgi.api.OSGIPluginProperties;

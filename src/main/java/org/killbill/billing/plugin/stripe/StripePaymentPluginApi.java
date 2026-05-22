@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 import org.joda.time.DateTime;
 import org.killbill.billing.ObjectType;

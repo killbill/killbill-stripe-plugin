@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;

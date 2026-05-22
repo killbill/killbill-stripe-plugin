@@ -25,7 +25,7 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
 

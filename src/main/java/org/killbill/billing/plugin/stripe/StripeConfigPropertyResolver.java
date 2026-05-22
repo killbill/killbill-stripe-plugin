@@ -19,7 +19,7 @@ package org.killbill.billing.plugin.stripe;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * Resolves config property values that may be plaintext or environment variable
