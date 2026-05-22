@@ -59,10 +59,6 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.wiremock</groupId>
-            <artifactId>wiremock</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
@@ -222,6 +218,10 @@
             <artifactId>testng</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -235,6 +235,41 @@
                             <artifactId>jooq</artifactId>
                             <expectedVersion>3.15.10</expectedVersion>
                             <resolvedVersion>3.13.5</resolvedVersion>
+                        </exception>
+                        <!-- wiremock 3.x (test-scope) pulls in guava 33.5; Kill Bill BOM pins 31.1-jre -->
+                        <exception>
+                            <groupId>com.google.guava</groupId>
+                            <artifactId>guava</artifactId>
+                            <expectedVersion>33.5.0-jre</expectedVersion>
+                            <resolvedVersion>31.1-jre</resolvedVersion>
+                        </exception>
+                        <!-- wiremock 3.x -> guava 33.5 -> error_prone_annotations 2.41; BOM resolves 2.16 -->
+                        <exception>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_annotations</artifactId>
+                            <expectedVersion>2.41.0</expectedVersion>
+                            <resolvedVersion>2.16</resolvedVersion>
+                        </exception>
+                        <!-- wiremock 3.x -> guava 33.5 -> failureaccess 1.0.3; BOM resolves 1.0.1 -->
+                        <exception>
+                            <groupId>com.google.guava</groupId>
+                            <artifactId>failureaccess</artifactId>
+                            <expectedVersion>1.0.3</expectedVersion>
+                            <resolvedVersion>1.0.1</resolvedVersion>
+                        </exception>
+                        <!-- wiremock 3.x -> guava 33.5 -> j2objc-annotations 3.1; BOM resolves 1.3 -->
+                        <exception>
+                            <groupId>com.google.j2objc</groupId>
+                            <artifactId>j2objc-annotations</artifactId>
+                            <expectedVersion>3.1</expectedVersion>
+                            <resolvedVersion>1.3</resolvedVersion>
+                        </exception>
+                        <!-- wiremock 3.x -> commons-io 2.19; embedded-postgres resolves 2.11 -->
+                        <exception>
+                            <groupId>commons-io</groupId>
+                            <artifactId>commons-io</artifactId>
+                            <expectedVersion>2.19.0</expectedVersion>
+                            <resolvedVersion>2.11.0</resolvedVersion>
                         </exception>
                     </exceptions>
                 </configuration>
@@ -258,17 +293,4 @@
             </plugin>
         </plugins>
     </build>
-    <repositories>
-        <repository>
-            <name>Central Portal Snapshots</name>
-            <id>central-portal-snapshots</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
 </project>
