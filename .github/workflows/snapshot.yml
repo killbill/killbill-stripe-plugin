@@ -1,0 +1,12 @@
+name: snapshot
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    uses: killbill/gh-actions-shared/.github/workflows/snapshot.yml@java21
+    secrets:
+      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
