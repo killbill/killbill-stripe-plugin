@@ -44,6 +44,8 @@
         <check.spotbugs-exclude-filter-file>spotbugs-exclude.xml</check.spotbugs-exclude-filter-file>
         <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
         <osgi.private>org.killbill.billing.plugin.stripe.*</osgi.private>
+        <!-- Match 2 things: Repo name in both github.com/killbill and Cloudsmith -->
+        <repository.cloudsmith.repo>killbill-stripe-plugin</repository.cloudsmith.repo>
     </properties>
     <dependencies>
         <dependency>
