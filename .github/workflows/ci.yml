@@ -7,17 +7,21 @@ on:
 
 jobs:
   ci:
-    uses: killbill/gh-actions-shared/.github/workflows/ci.yml@java21
+    uses: killbill/gh-actions-shared/.github/workflows/ci.yml@main
     with:
       test-profile-matrix: '[ "travis", "integration-mysql", "integration-postgresql" ]'
     secrets:
+      CLOUDSMITH_CENTRAL_PASSWORD: ${{ secrets.CLOUDSMITH_CENTRAL_PASSWORD }}
+      CLOUDSMITH_KILLBILL_MAVEN_REPO_PASSWORD: ${{ secrets.CLOUDSMITH_KILLBILL_MAVEN_REPO_PASSWORD }}
       extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
 
   integration_test:
-    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@java21
+    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@main
     with:
       plugin_name: 'stripe'
       integration_tests_goal: 'test:plugins:stripe'
       integration_tests_ref: 'refs/heads/java2x'
     secrets:
+      CLOUDSMITH_CENTRAL_PASSWORD: ${{ secrets.CLOUDSMITH_CENTRAL_PASSWORD }}
+      CLOUDSMITH_KILLBILL_MAVEN_REPO_PASSWORD: ${{ secrets.CLOUDSMITH_KILLBILL_MAVEN_REPO_PASSWORD }}
       extra-env: '{ "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}", "STRIPE_PUBLIC_KEY": "${{ secrets.STRIPE_PUBLIC_KEY }}" }'
