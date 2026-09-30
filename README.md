@@ -19,9 +19,11 @@ A full end-to-end integration demo is available [here](https://github.com/killbi
 |          7.2.y |            0.22.z | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
 |          7.3.y |            0.22.z | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
 |          8.0.y |            0.24.z | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
+|          9.0.y |            0.26.z | [2020-08-27](https://stripe.com/docs/upgrades#2020-08-27) |
 
 ### Release notes
 
+* In 9.0.x, the Java EE `javax` namespace is replaced by the `jakarta` namespace.
 * Starting with 7.3.0, the Setup Intents API is used to validate and store payment instruments, instead of the Payment Intents API.
 * We've upgraded numerous dependencies in 7.1.x (required for Java 11 support).
 

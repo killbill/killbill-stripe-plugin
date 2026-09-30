@@ -22,4 +22,9 @@
     <Match>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+    <!-- justification: constructor validates config eagerly; partial initialization is acceptable for plugin lifecycle -->
+    <Match>
+        <Class name="org.killbill.billing.plugin.stripe.StripeConfigProperties"/>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
 </FindBugsFilter>

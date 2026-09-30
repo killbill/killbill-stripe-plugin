@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 
 import org.jooby.MediaType;
 import org.jooby.Result;
@@ -42,7 +42,7 @@ import org.killbill.billing.util.callcontext.CallContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
+import jakarta.inject.Inject;
 
 @Singleton
 // Handle /plugins/killbill-stripe/checkout
